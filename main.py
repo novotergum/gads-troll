@@ -131,7 +131,7 @@ def get_client() -> GoogleAdsClient:
         "login_customer_id": os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", ""),
         "use_proto_plus": True,
     }
-    return GoogleAdsClient.load_from_dict(config, version="v21")
+    return GoogleAdsClient.load_from_dict(config, version="v18")
 
 
 def search(client: GoogleAdsClient, customer_id: str, query: str):
