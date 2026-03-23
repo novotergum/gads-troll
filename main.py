@@ -6,12 +6,6 @@ FastAPI Web-App für Railway Deployment
 """
 
 import os
-
-@app.get("/", response_class=HTMLResponse)
-async def dashboard():
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
-    with open(template_path) as f:
-        return f.read()
         
 import json
 from dataclasses import dataclass, field, asdict
@@ -543,7 +537,8 @@ def run_analysis(customer_id: str) -> dict:
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
-    with open("templates/index.html") as f:
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+    with open(template_path) as f:
         return f.read()
 
 
