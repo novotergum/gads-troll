@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+google-ads.yaml
+*.yaml
+.DS_Store
