@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Google Ads Bidding Health Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222636;
+    --border: #2d3148;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; }
+
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header h1 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .logo { width: 24px; height: 24px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 6px; }
+
+  .controls { display: flex; align-items: center; gap: 12px; }
+  .customer-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 12px; border-radius: 8px;
+    font-size: 13px; width: 160px;
+  }
+  .customer-input:focus { outline: none; border-color: var(--blue); }
+
+  .btn {
+    padding: 8px 16px; border-radius: 8px; border: none;
+    cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--blue); color: white; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-success { background: var(--green); color: white; }
+  .btn-success:hover { background: #16a34a; }
+  .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-warning { background: var(--yellow); color: #1a1a1a; }
+  .btn-warning:hover { background: #d97706; }
+  .btn-danger { background: var(--red); color: white; }
+
+  .main { padding: 24px; max-width: 1600px; margin: 0 auto; }
+
+  .loading {
+    display: none; text-align: center; padding: 80px;
+    color: var(--muted);
+  }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid var(--border);
+    border-top-color: var(--blue); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    background: #2d1515; border: 1px solid #7f1d1d;
+    border-radius: 10px; padding: 16px; margin-bottom: 20px;
+    color: #fca5a5; display: none;
+  }
+
+  /* Summary Cards */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+  }
+  .card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card-value { font-size: 28px; font-weight: 700; }
+  .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+  .neutral { color: var(--blue); }
+  .warn-color { color: var(--yellow); }
+
+  /* Budget Health Section */
+  .section { margin-bottom: 28px; }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .badge {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2px 10px; font-size: 11px; color: var(--muted);
+  }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--surface2); padding: 10px 14px;
+    text-align: left; font-size: 11px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .name-cell { font-weight: 500; max-width: 200px; }
+  .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
+
+  /* Delta pill */
+  .delta {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  }
+  .delta-up { background: rgba(34,197,94,0.12); color: var(--green); }
+  .delta-down { background: rgba(239,68,68,0.12); color: var(--red); }
+  .delta-zero { background: var(--surface2); color: var(--muted); }
+
+  /* IS bar */
+  .is-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .is-bar-bg { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .is-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .is-val { font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+  /* Bucket color strips */
+  .bucket-NEAR30_READY td:first-child { border-left: 3px solid var(--purple); }
+  .bucket-READY td:first-child { border-left: 3px solid var(--green); }
+  .bucket-LOWVOL_READY td:first-child { border-left: 3px solid var(--blue); }
+  .bucket-LOWVOL_DECREASE td:first-child { border-left: 3px solid var(--orange); }
+  .bucket-WARN td:first-child { border-left: 3px solid var(--yellow); }
+  .bucket-SKIP td:first-child { border-left: 3px solid var(--border); }
+
+  .bucket-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+  }
+  .pill-NEAR30_READY { background: rgba(139,92,246,0.15); color: var(--purple); }
+  .pill-READY { background: rgba(34,197,94,0.15); color: var(--green); }
+  .pill-LOWVOL_READY { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .pill-LOWVOL_DECREASE { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .pill-WARN { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .pill-SKIP { background: var(--surface2); color: var(--muted); }
+
+  /* Apply section */
+  .apply-bar {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+  }
+  .apply-info { font-size: 13px; color: var(--muted); }
+  .apply-info strong { color: var(--text); }
+  .apply-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  label.checkbox-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--muted); cursor: pointer;
+  }
+
+  /* Result box */
+  .result-box {
+    background: #0f2d1a; border: 1px solid #166534;
+    border-radius: 10px; padding: 16px; margin-top: 16px;
+    display: none;
+  }
+  .result-box h4 { color: var(--green); margin-bottom: 8px; font-size: 13px; }
+  .result-box ul { list-style: none; font-size: 12px; color: #86efac; }
+  .result-box ul li { padding: 2px 0; font-family: monospace; }
+
+  /* Collapsible sections */
+  .collapse-toggle {
+    cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .collapse-toggle::before {
+    content: '▼'; font-size: 10px; transition: transform 0.2s;
+  }
+  .collapse-toggle.collapsed::before { transform: rotate(-90deg); }
+  .collapsible { transition: all 0.2s; }
+
+  .empty-row td { text-align: center; color: var(--muted); padding: 24px; font-style: italic; }
+
+  .placeholder {
+    text-align: center; padding: 80px 24px; color: var(--muted);
+  }
+  .placeholder-icon { font-size: 48px; margin-bottom: 16px; }
+  .placeholder h2 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+
+  /* Tooltip */
+  [data-tip] { position: relative; cursor: help; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+    background: #1e2330; border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 6px; font-size: 11px;
+    white-space: nowrap; color: var(--text); z-index: 999;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>
+    <div class="logo"></div>
+    Bidding Health Dashboard
+  </h1>
+  <div class="controls">
+    <input class="customer-input" id="customerId" placeholder="Customer ID" value="">
+    <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">
+      <span id="analyzeBtnText">🔍 Analyze</span>
+    </button>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    Lade Daten von Google Ads API…
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div id="dashboard" style="display:none">
+
+    <!-- Summary Cards -->
+    <div class="summary-grid" id="summaryCards"></div>
+
+    <!-- Apply Bar -->
+    <div class="apply-bar">
+      <div class="apply-info">
+        <strong id="applyCount">0</strong> Strategien bereit zum Applyen
+        (NEAR30_READY, READY, LOWVOL_READY, LOWVOL_DECREASE)
+      </div>
+      <div class="apply-controls">
+        <label class="checkbox-label">
+          <input type="checkbox" id="includeWarn"> WARN auch applyen
+        </label>
+        <button class="btn btn-success" id="applyBtn" onclick="applyChanges()">
+          ✅ Apply Changes
+        </button>
+      </div>
+    </div>
+
+    <div class="result-box" id="resultBox">
+      <h4>✅ Applied successfully</h4>
+      <ul id="resultList"></ul>
+    </div>
+
+    <!-- Budget Health -->
+    <div class="section" id="budgetHealthSection">
+      <div class="section-header">
+        <div class="section-title collapse-toggle" onclick="toggleSection('budgetHealth')">
+          🔴 Budget-limitierte Strategien
+          <span class="badge" id="budgetLimitedCount">0</span>
+        </div>
+      </div>
+      <div class="collapsible" id="budgetHealth">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Strategie</th>
+                <th data-tip="Search IS verloren durch Budget-Limit (30T)">IS Lost (Budget)</th>
+                <th data-tip="Geschätzte verlorene Impressionen durch Budget-Limit">Lost Impressions</th>
+                <th data-tip="Google-Empfehlung für neues Tagesbudget">Budget-Empfehlung</th>
+              </tr>
+            </thead>
+            <tbody id="budgetHealthBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cap Changes Table -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title collapse-toggle" onclick="toggleSection('capChanges')">
+          📊 Cap-Änderungen
+          <span class="badge" id="capChangesCount">0</span>
+        </div>
+      </div>
+      <div class="collapsible" id="capChanges">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Strategie</th>
+                <th>Bucket</th>
+                <th>Clicks 14d / 30d</th>
+                <th>avgCPC 14d / 30d</th>
+                <th>Basis</th>
+                <th>Cap Alt</th>
+                <th>Cap Neu</th>
+                <th>Delta</th>
+                <th>IS Lost Budget</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody id="capChangesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SKIP Table -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title collapse-toggle collapsed" onclick="toggleSection('skipTable')">
+          ⏭ SKIP
+          <span class="badge" id="skipCount">0</span>
+        </div>
+      </div>
+      <div class="collapsible" id="skipTable" style="display:none">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Strategie</th>
+                <th>Clicks 14d / 30d</th>
+                <th>Grund</th>
+                <th>Empfehlung</th>
+              </tr>
+            </thead>
+            <tbody id="skipBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Placeholder -->
+  <div class="placeholder" id="placeholder">
+    <div class="placeholder-icon">📈</div>
+    <h2>Bidding Health Dashboard</h2>
+    <p>Customer ID eingeben und auf Analyze klicken</p>
+  </div>
+
+</div>
+
+<script>
+let analysisData = null;
+
+async function analyze() {
+  const customerId = document.getElementById('customerId').value.trim();
+  if (!customerId) { alert('Bitte Customer ID eingeben'); return; }
+
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('analyzeBtnText').textContent = '⏳ Lädt…';
+
+  try {
+    const res = await fetch(`/api/analyze?customer_id=${encodeURIComponent(customerId)}`);
+    const data = await res.json();
+
+    if (data.error) {
+      showError(data.error, data.details);
+      return;
+    }
+
+    analysisData = data;
+    renderDashboard(data);
+
+  } catch (e) {
+    showError('Netzwerkfehler: ' + e.message);
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('analyzeBtnText').textContent = '🔍 Analyze';
+  }
+}
+
+function showError(msg, details) {
+  const box = document.getElementById('errorBox');
+  let html = `<strong>❌ Fehler:</strong> ${msg}`;
+  if (details) {
+    html += '<ul style="margin-top:8px">' +
+      details.map(d => `<li>${d.message}</li>`).join('') + '</ul>';
+  }
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+function renderDashboard(data) {
+  const s = data.summary;
+
+  // Summary Cards
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="card">
+      <div class="card-label">Actionable</div>
+      <div class="card-value neutral">${s.total_actionable}</div>
+      <div class="card-sub">Strategien mit neuen Caps</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Erhöhungen</div>
+      <div class="card-value positive">+${s.total_increases_eur.toFixed(2)}€</div>
+      <div class="card-sub">${s.increases_count} Strategien</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Senkungen</div>
+      <div class="card-value negative">${s.total_decreases_eur.toFixed(2)}€</div>
+      <div class="card-sub">${s.decreases_count} Strategien</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Netto-Delta</div>
+      <div class="card-value ${s.net_delta_eur >= 0 ? 'positive' : 'negative'}">
+        ${s.net_delta_eur >= 0 ? '+' : ''}${s.net_delta_eur.toFixed(2)}€
+      </div>
+      <div class="card-sub">Gesamt Cap-Bewegung</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Budget-limitiert</div>
+      <div class="card-value warn-color">${data.budget_limited.length}</div>
+      <div class="card-sub">Strategien > 5% IS lost</div>
+    </div>
+  `;
+
+  document.getElementById('applyCount').textContent = s.total_actionable;
+
+  // Budget Health
+  const bl = data.budget_limited;
+  document.getElementById('budgetLimitedCount').textContent = bl.length;
+  const bhBody = document.getElementById('budgetHealthBody');
+  if (bl.length === 0) {
+    bhBody.innerHTML = '<tr class="empty-row"><td colspan="4">Keine budget-limitierten Strategien</td></tr>';
+  } else {
+    bhBody.innerHTML = bl.map(b => {
+      const pct = b.budget_lost_is;
+      const color = pct > 30 ? '#ef4444' : pct > 15 ? '#f59e0b' : '#22c55e';
+      return `<tr>
+        <td class="name-cell">${b.name}</td>
+        <td>
+          <div class="is-bar-wrap">
+            <div class="is-bar-bg"><div class="is-bar-fill" style="width:${Math.min(pct,100)}%;background:${color}"></div></div>
+            <span class="is-val" style="color:${color}">${pct}%</span>
+          </div>
+        </td>
+        <td class="mono">${b.lost_impressions > 0 ? '~' + b.lost_impressions.toLocaleString('de') : '—'}</td>
+        <td class="mono">${b.recommended_budget ? b.recommended_budget + ' €/Tag' : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Cap Changes (alle außer SKIP)
+  const allActionable = [
+    ...data.buckets.NEAR30_READY,
+    ...data.buckets.READY,
+    ...data.buckets.LOWVOL_READY,
+    ...data.buckets.LOWVOL_DECREASE,
+    ...data.buckets.WARN,
+  ];
+  document.getElementById('capChangesCount').textContent = allActionable.length;
+
+  const ccBody = document.getElementById('capChangesBody');
+  if (allActionable.length === 0) {
+    ccBody.innerHTML = '<tr class="empty-row"><td colspan="10">Keine Cap-Änderungen</td></tr>';
+  } else {
+    ccBody.innerHTML = allActionable
+      .sort((a, b) => (b.cap_delta_micros || 0) - (a.cap_delta_micros || 0))
+      .map(s => {
+        const delta = s.cap_delta_micros || 0;
+        const deltaEur = (delta / 1e6).toFixed(2);
+        const deltaClass = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero';
+        const deltaText = delta > 0 ? `+${deltaEur}€` : delta < 0 ? `${deltaEur}€` : '±0';
+        const budgetLost = s.budget_lost_is_30d > 0 ?
+          `<span style="color:${s.budget_lost_is_30d > 0.3 ? '#ef4444' : '#f59e0b'}">${(s.budget_lost_is_30d*100).toFixed(1)}%</span>` : '—';
+        return `<tr class="bucket-${s.bucket}">
+          <td class="name-cell">${s.name}</td>
+          <td><span class="bucket-pill pill-${s.bucket}">${s.bucket}</span></td>
+          <td class="mono">${s.clicks_14d} / ${s.clicks_30d}</td>
+          <td class="mono">${(s.avg_cpc_14d_micros/1e6).toFixed(2)} / ${(s.avg_cpc_30d_micros/1e6).toFixed(2)}</td>
+          <td class="mono" style="color:var(--muted)">${s.basis_window || '—'}</td>
+          <td class="mono">${s.current_cap_micros ? (s.current_cap_micros/1e6).toFixed(2) : '—'}€</td>
+          <td class="mono">${s.new_cap_micros ? (s.new_cap_micros/1e6).toFixed(2) : '—'}€</td>
+          <td><span class="delta ${deltaClass}">${deltaText}</span></td>
+          <td>${budgetLost}</td>
+          <td style="color:var(--muted);font-size:12px;max-width:200px">${s.reason || ''}</td>
+        </tr>`;
+      }).join('');
+  }
+
+  // SKIP
+  const skips = data.buckets.SKIP;
+  document.getElementById('skipCount').textContent = skips.length;
+  document.getElementById('skipBody').innerHTML = skips
+    .filter(s => s.enabled_campaigns > 0)
+    .map(s => `<tr class="bucket-SKIP">
+      <td class="name-cell">${s.name}</td>
+      <td class="mono">${s.clicks_14d} / ${s.clicks_30d}</td>
+      <td style="color:var(--muted);font-size:12px">${s.reason}</td>
+      <td style="color:var(--muted);font-size:12px">${s.recommendation || ''}</td>
+    </tr>`).join('') || '<tr class="empty-row"><td colspan="4">Keine aktiven SKIP-Strategien</td></tr>';
+
+  document.getElementById('dashboard').style.display = 'block';
+}
+
+async function applyChanges() {
+  if (!analysisData) return;
+  const includeWarn = document.getElementById('includeWarn').checked;
+  const customerId = document.getElementById('customerId').value.trim();
+
+  if (!confirm(`${analysisData.summary.total_actionable} Caps applyen?${includeWarn ? ' + WARN Fälle' : ''}')) return;
+
+  const btn = document.getElementById('applyBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Applying…';
+
+  try {
+    const res = await fetch('/api/apply', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ customer_id: customerId, include_warn: includeWarn })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      showError(data.error, data.details);
+      return;
+    }
+
+    const box = document.getElementById('resultBox');
+    document.getElementById('resultList').innerHTML = data.applied.map(a => `<li>✓ ${a}</li>`).join('');
+    box.style.display = 'block';
+    box.scrollIntoView({ behavior: 'smooth' });
+
+    // Re-analyze nach Apply
+    setTimeout(() => analyze(), 2000);
+
+  } catch (e) {
+    showError('Apply fehlgeschlagen: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✅ Apply Changes';
+  }
+}
+
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  const toggle = el.previousElementSibling.querySelector('.collapse-toggle');
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    toggle.classList.remove('collapsed');
+  } else {
+    el.style.display = 'none';
+    toggle.classList.add('collapsed');
+  }
+}
+
+// Customer ID aus URL-Param laden
+const urlParams = new URLSearchParams(window.location.search);
+const cidParam = urlParams.get('cid');
+if (cidParam) {
+  document.getElementById('customerId').value = cidParam;
+}
+</script>
+</body>
+</html>
