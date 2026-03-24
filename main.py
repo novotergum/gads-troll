@@ -327,14 +327,22 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
     - budget_limited: Anzahl Kampagnen mit budget_lost_is > 10%
     - total: Gesamtzahl Kampagnen
     - campaign_details: Liste der limitierten Kampagnen
+    - debug_statuses: alle gesehenen Status-Werte (für Debugging)
     """
+    # Google Ads API v21 BiddingStrategySystemStatus Enum-Werte
+    # die auf Cap-Limitierung hinweisen
     CAP_LIMITED_STATUSES = {
         "TARGET_SPEND_OPTIMIZE_BIDS_TOO_LOW",
         "TARGET_SPEND_CONSTRAINED_BY_BID_CEILING",
         "BUDGET_CONSTRAINED",
+        "MISCONFIGURED_BIDDING_STRATEGY",
+        "PAUSED",
+        # Numerische Fallbacks falls Enum als int kommt
+        "2", "3", "4", "5", "6",
     }
 
     result: Dict[str, dict] = {}
+    all_statuses_seen = set()  # Debug
 
     try:
         for r in search(client, customer_id, gaql_campaign_system_status()):
@@ -342,16 +350,35 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
             if not rn:
                 continue
 
-            status_str = str(r.campaign.bidding_strategy_system_status).split(".")[-1]
+            # Enum kann als int, string oder Enum-Objekt kommen
+            raw_status = r.campaign.bidding_strategy_system_status
+            status_int = int(raw_status) if raw_status is not None else 0
+            status_str = str(raw_status)
+            # Versuche den Namen zu extrahieren
+            status_name = status_str.split(".")[-1].strip()
+            all_statuses_seen.add(f"{status_int}:{status_name}")
+
             budget_lost = safe_float(r.metrics.search_budget_lost_impression_share)
             camp_name = r.campaign.name
 
             if rn not in result:
-                result[rn] = {"cap_limited": 0, "budget_limited": 0, "total": 0, "campaigns": []}
+                result[rn] = {
+                    "cap_limited": 0,
+                    "budget_limited": 0,
+                    "total": 0,
+                    "campaigns": [],
+                    "debug_statuses": [],
+                }
 
             result[rn]["total"] += 1
+            result[rn]["debug_statuses"].append(f"{camp_name}:{status_int}:{status_name}")
 
-            is_cap = status_str in CAP_LIMITED_STATUSES
+            # Cap-Limitierung: status != 0 (0 = UNSPECIFIED/OK) und != 1 (UNKNOWN)
+            # Status 2+ bedeutet irgendeine Einschränkung
+            is_cap = (
+                status_name in CAP_LIMITED_STATUSES
+                or (status_int >= 2 and status_int not in (0, 1))
+            )
             is_budget = budget_lost > 0.10
 
             if is_cap:
@@ -363,12 +390,14 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
                     "name": camp_name,
                     "cap_limited": is_cap,
                     "budget_limited": is_budget,
-                    "status": status_str,
+                    "status": f"{status_int}:{status_name}",
                     "budget_lost_pct": round(budget_lost * 100, 1),
                 })
     except Exception as e:
-        pass
+        return {"_error": str(e), "_debug": list(all_statuses_seen)}
 
+    # Debug-Info ans Result anhängen
+    result["_debug_all_statuses"] = list(all_statuses_seen)
     return result
 
 
@@ -657,6 +686,7 @@ def run_analysis(customer_id: str) -> dict:
     return {
         "customer_id": customer_id,
         "buckets": buckets,
+        "debug_cap_statuses": list(cap_status.get("_debug_all_statuses", [])),
         "summary": {
             "total_actionable": len(actionable),
             "total_increases_eur": round(total_increases / 1_000_000, 2),
