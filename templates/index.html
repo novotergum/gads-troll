@@ -1,580 +1,761 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Google Ads Bidding Health Dashboard</title>
-<style>
-  :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #222636;
-    --border: #2d3148;
-    --text: #e2e8f0;
-    --muted: #8892a4;
-    --green: #22c55e;
-    --red: #ef4444;
-    --yellow: #f59e0b;
-    --blue: #3b82f6;
-    --purple: #8b5cf6;
-    --orange: #f97316;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; }
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Google Ads Bidding Health Dashboard
+FastAPI Web-App für Railway Deployment
+"""
 
-  .header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
-  .header h1 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .logo { width: 24px; height: 24px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 6px; }
+import os
+import json
+from dataclasses import dataclass, field, asdict
+from typing import Dict, List, Optional, Tuple
 
-  .controls { display: flex; align-items: center; gap: 12px; }
-  .customer-input {
-    background: var(--surface2); border: 1px solid var(--border);
-    color: var(--text); padding: 8px 12px; border-radius: 8px;
-    font-size: 13px; width: 160px;
-  }
-  .customer-input:focus { outline: none; border-color: var(--blue); }
+from fastapi import FastAPI, BackgroundTasks
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+import uvicorn
 
-  .btn {
-    padding: 8px 16px; border-radius: 8px; border: none;
-    cursor: pointer; font-size: 13px; font-weight: 500;
-    transition: all 0.15s; display: flex; align-items: center; gap: 6px;
-  }
-  .btn-primary { background: var(--blue); color: white; }
-  .btn-primary:hover { background: #2563eb; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-success { background: var(--green); color: white; }
-  .btn-success:hover { background: #16a34a; }
-  .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-warning { background: var(--yellow); color: #1a1a1a; }
-  .btn-warning:hover { background: #d97706; }
-  .btn-danger { background: var(--red); color: white; }
+from google.ads.googleads.client import GoogleAdsClient
+from google.ads.googleads.errors import GoogleAdsException
+from google.protobuf.field_mask_pb2 import FieldMask
 
-  .main { padding: 24px; max-width: 1600px; margin: 0 auto; }
+app = FastAPI(title="Google Ads Bidding Health Dashboard")
 
-  .loading {
-    display: none; text-align: center; padding: 80px;
-    color: var(--muted);
-  }
-  .spinner {
-    width: 40px; height: 40px; border: 3px solid var(--border);
-    border-top-color: var(--blue); border-radius: 50%;
-    animation: spin 0.8s linear infinite; margin: 0 auto 16px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+# ============================
+# CONFIG
+# ============================
 
-  .error-box {
-    background: #2d1515; border: 1px solid #7f1d1d;
-    border-radius: 10px; padding: 16px; margin-bottom: 20px;
-    color: #fca5a5; display: none;
-  }
+CUSTOMER_ID = os.environ.get("GOOGLE_ADS_CUSTOMER_ID", "")
 
-  /* Summary Cards */
-  .summary-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px; margin-bottom: 24px;
-  }
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 16px;
-  }
-  .card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-  .card-value { font-size: 28px; font-weight: 700; }
-  .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
-  .positive { color: var(--green); }
-  .negative { color: var(--red); }
-  .neutral { color: var(--blue); }
-  .warn-color { color: var(--yellow); }
+MIN_CAP_MICROS = 10_000
+NEAR30_MIN = 24
+NEAR30_MAX = 29
+NEAR15_NODECREASE_MIN = 12
+NEAR15_NODECREASE_MAX = 14
+MAX_CAP_WARNING_EUR = 6.00
+MAX_CAP_WARNING_MICROS = int(MAX_CAP_WARNING_EUR * 1_000_000)
 
-  /* Budget Health Section */
-  .section { margin-bottom: 28px; }
-  .section-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
-  }
-  .section-title {
-    font-size: 13px; font-weight: 600; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.5px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .badge {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 20px; padding: 2px 10px; font-size: 11px; color: var(--muted);
-  }
+# ============================
+# DATA STRUCTURES
+# ============================
 
-  /* Tables */
-  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
-  table { width: 100%; border-collapse: collapse; }
-  th {
-    background: var(--surface2); padding: 10px 14px;
-    text-align: left; font-size: 11px; font-weight: 600;
-    color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px;
-    white-space: nowrap;
-  }
-  td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: middle; }
-  tr:hover td { background: rgba(255,255,255,0.02); }
-  .name-cell { font-weight: 500; max-width: 200px; }
-  .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
+@dataclass
+class StrategyRow:
+    resource_name: str
+    strategy_id: int
+    name: str
+    status: str
+    current_cap_micros: Optional[int]
+    enabled_campaigns: int
 
-  /* Delta pill */
-  .delta {
-    display: inline-flex; align-items: center; gap: 3px;
-    padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600;
-  }
-  .delta-up { background: rgba(34,197,94,0.12); color: var(--green); }
-  .delta-down { background: rgba(239,68,68,0.12); color: var(--red); }
-  .delta-zero { background: var(--surface2); color: var(--muted); }
+    clicks_7d: int = 0
+    clicks_14d: int = 0
+    clicks_30d: int = 0
 
-  /* IS bar */
-  .is-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 120px; }
-  .is-bar-bg { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .is-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-  .is-val { font-size: 12px; font-weight: 600; white-space: nowrap; }
+    avg_cpc_7d_micros: int = 0
+    avg_cpc_14d_micros: int = 0
+    avg_cpc_30d_micros: int = 0
 
-  /* Bucket color strips */
-  .bucket-NEAR30_READY td:first-child { border-left: 3px solid var(--purple); }
-  .bucket-READY td:first-child { border-left: 3px solid var(--green); }
-  .bucket-LOWVOL_READY td:first-child { border-left: 3px solid var(--blue); }
-  .bucket-LOWVOL_DECREASE td:first-child { border-left: 3px solid var(--orange); }
-  .bucket-WARN td:first-child { border-left: 3px solid var(--yellow); }
-  .bucket-SKIP td:first-child { border-left: 3px solid var(--border); }
+    ctr_7d: float = 0.0
+    ctr_14d: float = 0.0
+    ctr_30d: float = 0.0
 
-  .bucket-pill {
-    display: inline-block; padding: 2px 8px; border-radius: 20px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
-  }
-  .pill-NEAR30_READY { background: rgba(139,92,246,0.15); color: var(--purple); }
-  .pill-READY { background: rgba(34,197,94,0.15); color: var(--green); }
-  .pill-LOWVOL_READY { background: rgba(59,130,246,0.15); color: var(--blue); }
-  .pill-LOWVOL_DECREASE { background: rgba(249,115,22,0.15); color: var(--orange); }
-  .pill-WARN { background: rgba(245,158,11,0.15); color: var(--yellow); }
-  .pill-SKIP { background: var(--surface2); color: var(--muted); }
+    # Health metrics
+    budget_lost_is_30d: float = 0.0       # Search IS lost due to budget
+    rank_lost_is_30d: float = 0.0         # Search IS lost due to rank
+    impressions_30d: int = 0
+    lost_impressions_budget: int = 0      # estimated lost impressions due to budget
 
-  /* Apply section */
-  .apply-bar {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 16px 20px;
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
-  }
-  .apply-info { font-size: 13px; color: var(--muted); }
-  .apply-info strong { color: var(--text); }
-  .apply-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    # Cap-limitierte Kampagnen (system_status)
+    cap_limited_campaigns: int = 0     # Kampagnen mit TARGET_SPEND_OPTIMIZE_BIDS_TOO_LOW
+    budget_limited_campaigns: int = 0  # Kampagnen mit budget_lost_is > 0.1
 
-  label.checkbox-label {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: var(--muted); cursor: pointer;
-  }
+    # Budget recommendation
+    budget_recommendation_micros: Optional[int] = None
+    recommended_budget_micros: Optional[int] = None
 
-  /* Result box */
-  .result-box {
-    background: #0f2d1a; border: 1px solid #166534;
-    border-radius: 10px; padding: 16px; margin-top: 16px;
-    display: none;
-  }
-  .result-box h4 { color: var(--green); margin-bottom: 8px; font-size: 13px; }
-  .result-box ul { list-style: none; font-size: 12px; color: #86efac; }
-  .result-box ul li { padding: 2px 0; font-family: monospace; }
+    basis_window: str = ""
+    basis_avg_cpc_micros: int = 0
+    new_cap_micros: Optional[int] = None
+    cap_delta_micros: int = 0
 
-  /* Collapsible sections */
-  .collapse-toggle {
-    cursor: pointer; user-select: none;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .collapse-toggle::before {
-    content: '▼'; font-size: 10px; transition: transform 0.2s;
-  }
-  .collapse-toggle.collapsed::before { transform: rotate(-90deg); }
-  .collapsible { transition: all 0.2s; }
+    bucket: str = "SKIP"
+    reason: str = ""
+    recommendation: str = ""
 
-  .empty-row td { text-align: center; color: var(--muted); padding: 24px; font-style: italic; }
 
-  .placeholder {
-    text-align: center; padding: 80px 24px; color: var(--muted);
-  }
-  .placeholder-icon { font-size: 48px; margin-bottom: 16px; }
-  .placeholder h2 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+@dataclass
+class MetricsAccumulator:
+    clicks: int = 0
+    cpc_values: List[int] = field(default_factory=list)
+    ctr_sum: float = 0.0
+    campaign_count: int = 0
+    budget_lost_is_sum: float = 0.0
+    rank_lost_is_sum: float = 0.0
+    impressions: int = 0
 
-  /* Tooltip */
-  [data-tip] { position: relative; cursor: help; }
-  [data-tip]:hover::after {
-    content: attr(data-tip);
-    position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
-    background: #1e2330; border: 1px solid var(--border);
-    padding: 6px 10px; border-radius: 6px; font-size: 11px;
-    white-space: nowrap; color: var(--text); z-index: 999;
-  }
-</style>
-</head>
-<body>
+    def add(self, clicks: int, avg_cpc: int, ctr: float,
+            budget_lost_is: float = 0.0, rank_lost_is: float = 0.0,
+            impressions: int = 0) -> None:
+        self.clicks += clicks
+        if avg_cpc > 0:
+            self.cpc_values.append(avg_cpc)
+        self.ctr_sum += ctr
+        self.campaign_count += 1
+        self.budget_lost_is_sum += budget_lost_is
+        self.rank_lost_is_sum += rank_lost_is
+        self.impressions += impressions
 
-<div class="header">
-  <h1>
-    <div class="logo"></div>
-    Bidding Health Dashboard
-  </h1>
-  <div class="controls">
-    <input class="customer-input" id="customerId" placeholder="Customer ID" value="">
-    <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">
-      <span id="analyzeBtnText">🔍 Analyze</span>
-    </button>
-  </div>
-</div>
+    def finalize(self) -> dict:
+        avg_cpc = int(sum(self.cpc_values) / len(self.cpc_values)) if self.cpc_values else 0
+        avg_ctr = self.ctr_sum / self.campaign_count if self.campaign_count > 0 else 0.0
+        avg_budget_lost = self.budget_lost_is_sum / self.campaign_count if self.campaign_count > 0 else 0.0
+        avg_rank_lost = self.rank_lost_is_sum / self.campaign_count if self.campaign_count > 0 else 0.0
+        return {
+            "clicks": self.clicks,
+            "avg_cpc": avg_cpc,
+            "ctr": avg_ctr,
+            "budget_lost_is": avg_budget_lost,
+            "rank_lost_is": avg_rank_lost,
+            "impressions": self.impressions,
+        }
 
-<div class="main">
 
-  <div class="loading" id="loading">
-    <div class="spinner"></div>
-    Lade Daten von Google Ads API…
-  </div>
+# ============================
+# GOOGLE ADS CLIENT
+# ============================
 
-  <div class="error-box" id="errorBox"></div>
+def get_client() -> GoogleAdsClient:
+    """Baut GoogleAdsClient aus Environment Variables."""
+    config = {
+        "developer_token": os.environ["GOOGLE_ADS_DEVELOPER_TOKEN"],
+        "client_id": os.environ["GOOGLE_ADS_CLIENT_ID"],
+        "client_secret": os.environ["GOOGLE_ADS_CLIENT_SECRET"],
+        "refresh_token": os.environ["GOOGLE_ADS_REFRESH_TOKEN"],
+        "login_customer_id": os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", ""),
+        "use_proto_plus": True,
+    }
+    return GoogleAdsClient.load_from_dict(config, version="v21")
 
-  <div id="dashboard" style="display:none">
 
-    <!-- Summary Cards -->
-    <div class="summary-grid" id="summaryCards"></div>
+def search(client: GoogleAdsClient, customer_id: str, query: str):
+    ga_service = client.get_service("GoogleAdsService")
+    return ga_service.search(customer_id=customer_id, query=query)
 
-    <!-- Apply Bar -->
-    <div class="apply-bar">
-      <div class="apply-info">
-        <strong id="applyCount">0</strong> Strategien bereit zum Applyen
-        (NEAR30_READY, READY, LOWVOL_READY, LOWVOL_DECREASE)
-      </div>
-      <div class="apply-controls">
-        <label class="checkbox-label">
-          <input type="checkbox" id="includeWarn"> WARN auch applyen
-        </label>
-        <button class="btn btn-success" id="applyBtn" onclick="applyChanges()">
-          ✅ Apply Changes
-        </button>
-      </div>
-    </div>
 
-    <div class="result-box" id="resultBox">
-      <h4>✅ Applied successfully</h4>
-      <ul id="resultList"></ul>
-    </div>
+# ============================
+# HELPERS
+# ============================
 
-    <!-- Budget Health -->
-    <div class="section" id="budgetHealthSection">
-      <div class="section-header">
-        <div class="section-title collapse-toggle" onclick="toggleSection('budgetHealth')">
-          ⚡ Cap &amp; Budget Health
-          <span class="badge" id="budgetLimitedCount">0</span>
-        </div>
-      </div>
-      <div class="collapsible" id="budgetHealth">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Strategie</th>
-                <th>Bucket</th>
-                <th data-tip="Kampagnen mit Gebotslimit-Einschränkung">Cap-limitiert</th>
-                <th data-tip="Kampagnen mit Budget-Einschränkung">Budget-limitiert</th>
-                <th>Cap Alt → Neu</th>
-                <th>Handlungsempfehlung</th>
-              </tr>
-            </thead>
-            <tbody id="budgetHealthBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+def micros_to_eur(micros: Optional[int]) -> float:
+    if micros is None:
+        return 0.0
+    return micros / 1_000_000
 
-    <!-- Cap Changes Table -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title collapse-toggle" onclick="toggleSection('capChanges')">
-          📊 Cap-Änderungen
-          <span class="badge" id="capChangesCount">0</span>
-        </div>
-      </div>
-      <div class="collapsible" id="capChanges">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Strategie</th>
-                <th>Bucket</th>
-                <th>Clicks 14d / 30d</th>
-                <th>avgCPC 14d / 30d</th>
-                <th>Basis</th>
-                <th>Cap Alt</th>
-                <th>Cap Neu</th>
-                <th>Delta</th>
-                <th>IS Lost Budget</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody id="capChangesBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+def micros_to_str(micros: Optional[int]) -> str:
+    if micros is None:
+        return "none"
+    return f"{micros/1_000_000:.2f}"
 
-    <!-- SKIP Table -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title collapse-toggle collapsed" onclick="toggleSection('skipTable')">
-          ⏭ SKIP
-          <span class="badge" id="skipCount">0</span>
-        </div>
-      </div>
-      <div class="collapsible" id="skipTable" style="display:none">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Strategie</th>
-                <th>Clicks 14d / 30d</th>
-                <th>Grund</th>
-                <th>Empfehlung</th>
-              </tr>
-            </thead>
-            <tbody id="skipBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+def safe_int(x) -> int:
+    try: return int(x)
+    except: return 0
 
-  </div>
+def safe_float(x) -> float:
+    try: return float(x)
+    except: return 0.0
 
-  <!-- Placeholder -->
-  <div class="placeholder" id="placeholder">
-    <div class="placeholder-icon">📈</div>
-    <h2>Bidding Health Dashboard</h2>
-    <p>Customer ID eingeben und auf Analyze klicken</p>
-  </div>
+def compute_new_cap_plus10(basis: int) -> int:
+    return max(MIN_CAP_MICROS, int(round(basis * 1.10)))
 
-</div>
+def apply_no_decrease_near15_rule(s: StrategyRow) -> bool:
+    if s.new_cap_micros is None or s.current_cap_micros is None:
+        return False
+    near15 = NEAR15_NODECREASE_MIN <= s.clicks_14d <= NEAR15_NODECREASE_MAX
+    if near15 and s.new_cap_micros < s.current_cap_micros:
+        s.bucket = "SKIP"
+        s.reason = f"NO_DECREASE_NEAR15: clicks14={s.clicks_14d}, would reduce cap"
+        s.new_cap_micros = None
+        s.cap_delta_micros = 0
+        s.basis_window = ""
+        s.basis_avg_cpc_micros = 0
+        return True
+    return False
 
-<script>
-let analysisData = null;
 
-async function analyze() {
-  const customerId = document.getElementById('customerId').value.trim();
-  if (!customerId) { alert('Bitte Customer ID eingeben'); return; }
+# ============================
+# GAQL QUERIES
+# ============================
 
-  document.getElementById('placeholder').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('errorBox').style.display = 'none';
-  document.getElementById('resultBox').style.display = 'none';
-  document.getElementById('analyzeBtn').disabled = true;
-  document.getElementById('analyzeBtnText').textContent = '⏳ Lädt…';
+def gaql_strategies() -> str:
+    return """
+    SELECT
+      bidding_strategy.resource_name,
+      bidding_strategy.id,
+      bidding_strategy.name,
+      bidding_strategy.type,
+      bidding_strategy.status,
+      bidding_strategy.target_spend.cpc_bid_ceiling_micros
+    FROM bidding_strategy
+    WHERE
+      bidding_strategy.type = TARGET_SPEND
+      AND bidding_strategy.status != REMOVED
+    """
 
-  try {
-    const res = await fetch(`/api/analyze?customer_id=${encodeURIComponent(customerId)}`);
-    const data = await res.json();
+def gaql_enabled_campaign_count(strategy_rn: str) -> str:
+    return f"""
+    SELECT campaign.id
+    FROM campaign
+    WHERE
+      campaign.status = ENABLED
+      AND campaign.bidding_strategy = '{strategy_rn}'
+    """
 
-    if (data.error) {
-      showError(data.error, data.details);
-      return;
+def gaql_metrics(during: str) -> str:
+    return f"""
+    SELECT
+      bidding_strategy.resource_name,
+      metrics.clicks,
+      metrics.average_cpc,
+      metrics.ctr,
+      metrics.search_budget_lost_impression_share,
+      metrics.search_rank_lost_impression_share,
+      metrics.impressions
+    FROM campaign
+    WHERE
+      campaign.status = ENABLED
+      AND segments.date DURING {during}
+      AND campaign.bidding_strategy IS NOT NULL
+    """
+
+def gaql_campaign_system_status() -> str:
+    return """
+    SELECT
+      campaign.bidding_strategy,
+      campaign.name,
+      campaign.bidding_strategy_system_status,
+      metrics.search_budget_lost_impression_share
+    FROM campaign
+    WHERE
+      campaign.status = ENABLED
+      AND campaign.bidding_strategy IS NOT NULL
+      AND segments.date DURING LAST_30_DAYS
+    """
+
+
+def gaql_budget_recommendations() -> str:
+    return """
+    SELECT
+      recommendation.resource_name,
+      recommendation.type,
+      recommendation.campaign_budget_recommendation.current_budget_amount_micros,
+      recommendation.campaign_budget_recommendation.recommended_budget_amount_micros,
+      recommendation.campaign_budget_recommendation.budget_options,
+      campaign.bidding_strategy
+    FROM recommendation
+    WHERE recommendation.type = CAMPAIGN_BUDGET
+    """
+
+
+# ============================
+# FETCHING
+# ============================
+
+def fetch_strategies(client, customer_id) -> Dict[str, StrategyRow]:
+    rows = {}
+    for r in search(client, customer_id, gaql_strategies()):
+        bs = r.bidding_strategy
+        cap = bs.target_spend.cpc_bid_ceiling_micros
+        rows[bs.resource_name] = StrategyRow(
+            resource_name=bs.resource_name,
+            strategy_id=bs.id,
+            name=bs.name,
+            status=str(bs.status).replace("BiddingStrategyStatus.", ""),
+            current_cap_micros=int(cap) if cap else None,
+            enabled_campaigns=0,
+        )
+    return rows
+
+
+def fetch_enabled_campaign_counts(client, customer_id, strategies):
+    # Ein einziger Query statt N einzelne (N = Anzahl Strategien)
+    q = """
+    SELECT campaign.bidding_strategy, campaign.id
+    FROM campaign
+    WHERE
+      campaign.status = ENABLED
+      AND campaign.bidding_strategy IS NOT NULL
+    """
+    counts = {}
+    for r in search(client, customer_id, q):
+        rn = r.campaign.bidding_strategy
+        counts[rn] = counts.get(rn, 0) + 1
+
+    for s in strategies.values():
+        s.enabled_campaigns = counts.get(s.resource_name, 0)
+
+
+def fetch_metrics_aggregated(client, customer_id) -> Dict[str, Dict[str, dict]]:
+    accumulators: Dict[str, Dict[str, MetricsAccumulator]] = {}
+    windows = {"7d": "LAST_7_DAYS", "14d": "LAST_14_DAYS", "30d": "LAST_30_DAYS"}
+
+    for key, during in windows.items():
+        for r in search(client, customer_id, gaql_metrics(during)):
+            rn = r.bidding_strategy.resource_name
+            if rn not in accumulators:
+                accumulators[rn] = {}
+            if key not in accumulators[rn]:
+                accumulators[rn][key] = MetricsAccumulator()
+
+            accumulators[rn][key].add(
+                clicks=safe_int(r.metrics.clicks),
+                avg_cpc=safe_int(r.metrics.average_cpc),
+                ctr=safe_float(r.metrics.ctr),
+                budget_lost_is=safe_float(r.metrics.search_budget_lost_impression_share),
+                rank_lost_is=safe_float(r.metrics.search_rank_lost_impression_share),
+                impressions=safe_int(r.metrics.impressions),
+            )
+
+    return {rn: {k: acc.finalize() for k, acc in windows_acc.items()}
+            for rn, windows_acc in accumulators.items()}
+
+
+def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
+    """
+    Gibt pro Strategie zurück:
+    - cap_limited: Anzahl Kampagnen mit Cap-Limitierung
+    - budget_limited: Anzahl Kampagnen mit budget_lost_is > 10%
+    - total: Gesamtzahl Kampagnen
+    - campaign_details: Liste der limitierten Kampagnen
+    - debug_statuses: alle gesehenen Status-Werte (für Debugging)
+    """
+    # Google Ads API v21 BiddingStrategySystemStatus Enum-Werte
+    # die auf Cap-Limitierung hinweisen
+    CAP_LIMITED_STATUSES = {
+        "TARGET_SPEND_OPTIMIZE_BIDS_TOO_LOW",
+        "TARGET_SPEND_CONSTRAINED_BY_BID_CEILING",
+        "BUDGET_CONSTRAINED",
+        "MISCONFIGURED_BIDDING_STRATEGY",
+        "PAUSED",
+        # Numerische Fallbacks falls Enum als int kommt
+        "2", "3", "4", "5", "6",
     }
 
-    analysisData = data;
-    renderDashboard(data);
+    result: Dict[str, dict] = {}
+    all_statuses_seen = set()  # Debug
 
-  } catch (e) {
-    showError('Netzwerkfehler: ' + e.message);
-  } finally {
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('analyzeBtn').disabled = false;
-    document.getElementById('analyzeBtnText').textContent = '🔍 Analyze';
-  }
-}
+    try:
+        for r in search(client, customer_id, gaql_campaign_system_status()):
+            rn = r.campaign.bidding_strategy
+            if not rn:
+                continue
 
-function showError(msg, details) {
-  const box = document.getElementById('errorBox');
-  let html = `<strong>❌ Fehler:</strong> ${msg}`;
-  if (details) {
-    html += '<ul style="margin-top:8px">' +
-      details.map(d => `<li>${d.message}</li>`).join('') + '</ul>';
-  }
-  box.innerHTML = html;
-  box.style.display = 'block';
-}
+            # Enum kann als int, string oder Enum-Objekt kommen
+            raw_status = r.campaign.bidding_strategy_system_status
+            status_int = int(raw_status) if raw_status is not None else 0
+            status_str = str(raw_status)
+            # Versuche den Namen zu extrahieren
+            status_name = status_str.split(".")[-1].strip()
+            all_statuses_seen.add(f"{status_int}:{status_name}")
 
-function renderDashboard(data) {
-  const s = data.summary;
+            budget_lost = safe_float(r.metrics.search_budget_lost_impression_share)
+            camp_name = r.campaign.name
 
-  // Summary Cards
-  document.getElementById('summaryCards').innerHTML = `
-    <div class="card">
-      <div class="card-label">Actionable</div>
-      <div class="card-value neutral">${s.total_actionable}</div>
-      <div class="card-sub">Strategien mit neuen Caps</div>
-    </div>
-    <div class="card">
-      <div class="card-label">Erhöhungen</div>
-      <div class="card-value positive">+${s.total_increases_eur.toFixed(2)}€</div>
-      <div class="card-sub">${s.increases_count} Strategien</div>
-    </div>
-    <div class="card">
-      <div class="card-label">Senkungen</div>
-      <div class="card-value negative">${s.total_decreases_eur.toFixed(2)}€</div>
-      <div class="card-sub">${s.decreases_count} Strategien</div>
-    </div>
-    <div class="card">
-      <div class="card-label">Netto-Delta</div>
-      <div class="card-value ${s.net_delta_eur >= 0 ? 'positive' : 'negative'}">
-        ${s.net_delta_eur >= 0 ? '+' : ''}${s.net_delta_eur.toFixed(2)}€
-      </div>
-      <div class="card-sub">Gesamt Cap-Bewegung</div>
-    </div>
-    <div class="card">
-      <div class="card-label">Budget-limitiert</div>
-      <div class="card-value warn-color">${data.budget_limited.length}</div>
-      <div class="card-sub">Strategien > 5% IS lost</div>
-    </div>
-  `;
+            if rn not in result:
+                result[rn] = {
+                    "cap_limited": 0,
+                    "budget_limited": 0,
+                    "total": 0,
+                    "campaigns": [],
+                    "debug_statuses": [],
+                }
 
-  document.getElementById('applyCount').textContent = s.total_actionable;
+            result[rn]["total"] += 1
+            result[rn]["debug_statuses"].append(f"{camp_name}:{status_int}:{status_name}")
 
-  // Cap & Budget Health
-  const bl = data.budget_limited;
-  document.getElementById('budgetLimitedCount').textContent = bl.length;
-  const bhBody = document.getElementById('budgetHealthBody');
-  if (bl.length === 0) {
-    bhBody.innerHTML = '<tr class="empty-row"><td colspan="6">Keine cap- oder budget-limitierten Strategien</td></tr>';
-  } else {
-    bhBody.innerHTML = bl.map(b => {
-      const capColor = b.cap_limited === b.total_campaigns ? '#ef4444' : b.cap_limited > 0 ? '#f59e0b' : '#8892a4';
-      const budColor = b.budget_limited > 0 ? '#f59e0b' : '#8892a4';
-      const actionColor = b.action.startsWith('🔴') ? '#ef4444' : b.action.startsWith('⚠️') ? '#f59e0b' : b.action.startsWith('✅') ? '#22c55e' : '#3b82f6';
-      const capChange = b.cap_delta ? `<span class="mono" style="color:${b.cap_delta.startsWith('+') ? '#22c55e' : '#ef4444'}">${b.cap_delta}</span>` : '—';
-      const capStr = b.cap_alt && b.cap_neu ? `${b.cap_alt}€ → ${b.cap_neu}€ ${capChange}` : b.cap_alt ? `${b.cap_alt}€` : '—';
-      return `<tr>
-        <td class="name-cell">${b.name}</td>
-        <td><span class="bucket-pill pill-${b.bucket}">${b.bucket}</span></td>
-        <td style="color:${capColor};font-weight:600">${b.cap_limited}/${b.total_campaigns}</td>
-        <td style="color:${budColor};font-weight:600">${b.budget_limited}/${b.total_campaigns}</td>
-        <td class="mono" style="font-size:12px">${capStr}</td>
-        <td style="color:${actionColor};font-size:12px;font-weight:500">${b.action}</td>
-      </tr>`;
-    }).join('');
-  }
+            # Cap-Limitierung: status != 0 (0 = UNSPECIFIED/OK) und != 1 (UNKNOWN)
+            # Status 2+ bedeutet irgendeine Einschränkung
+            is_cap = (
+                status_name in CAP_LIMITED_STATUSES
+                or (status_int >= 2 and status_int not in (0, 1))
+            )
+            is_budget = budget_lost > 0.10
 
-  // Cap Changes (alle außer SKIP)
-  const allActionable = [
-    ...data.buckets.NEAR30_READY,
-    ...data.buckets.READY,
-    ...data.buckets.LOWVOL_READY,
-    ...data.buckets.LOWVOL_DECREASE,
-    ...data.buckets.WARN,
-  ];
-  document.getElementById('capChangesCount').textContent = allActionable.length;
+            if is_cap:
+                result[rn]["cap_limited"] += 1
+            if is_budget:
+                result[rn]["budget_limited"] += 1
+            if is_cap or is_budget:
+                result[rn]["campaigns"].append({
+                    "name": camp_name,
+                    "cap_limited": is_cap,
+                    "budget_limited": is_budget,
+                    "status": f"{status_int}:{status_name}",
+                    "budget_lost_pct": round(budget_lost * 100, 1),
+                })
+    except Exception as e:
+        return {"_error": str(e), "_debug": list(all_statuses_seen)}
 
-  const ccBody = document.getElementById('capChangesBody');
-  if (allActionable.length === 0) {
-    ccBody.innerHTML = '<tr class="empty-row"><td colspan="10">Keine Cap-Änderungen</td></tr>';
-  } else {
-    ccBody.innerHTML = allActionable
-      .sort((a, b) => (b.cap_delta_micros || 0) - (a.cap_delta_micros || 0))
-      .map(s => {
-        const delta = s.cap_delta_micros || 0;
-        const deltaEur = (delta / 1e6).toFixed(2);
-        const deltaClass = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero';
-        const deltaText = delta > 0 ? `+${deltaEur}€` : delta < 0 ? `${deltaEur}€` : '±0';
-        const budgetLost = s.budget_lost_is_30d > 0 ?
-          `<span style="color:${s.budget_lost_is_30d > 0.3 ? '#ef4444' : '#f59e0b'}">${(s.budget_lost_is_30d*100).toFixed(1)}%</span>` : '—';
-        return `<tr class="bucket-${s.bucket}">
-          <td class="name-cell">${s.name}</td>
-          <td><span class="bucket-pill pill-${s.bucket}">${s.bucket}</span></td>
-          <td class="mono">${s.clicks_14d} / ${s.clicks_30d}</td>
-          <td class="mono">${(s.avg_cpc_14d_micros/1e6).toFixed(2)} / ${(s.avg_cpc_30d_micros/1e6).toFixed(2)}</td>
-          <td class="mono" style="color:var(--muted)">${s.basis_window || '—'}</td>
-          <td class="mono">${s.current_cap_micros ? (s.current_cap_micros/1e6).toFixed(2) : '—'}€</td>
-          <td class="mono">${s.new_cap_micros ? (s.new_cap_micros/1e6).toFixed(2) : '—'}€</td>
-          <td><span class="delta ${deltaClass}">${deltaText}</span></td>
-          <td>${budgetLost}</td>
-          <td style="color:var(--muted);font-size:12px;max-width:200px">${s.reason || ''}</td>
-        </tr>`;
-      }).join('');
-  }
+    # Debug-Info ans Result anhängen
+    result["_debug_all_statuses"] = list(all_statuses_seen)
+    return result
 
-  // SKIP
-  const skips = data.buckets.SKIP;
-  document.getElementById('skipCount').textContent = skips.length;
-  document.getElementById('skipBody').innerHTML = skips
-    .filter(s => s.enabled_campaigns > 0)
-    .map(s => `<tr class="bucket-SKIP">
-      <td class="name-cell">${s.name}</td>
-      <td class="mono">${s.clicks_14d} / ${s.clicks_30d}</td>
-      <td style="color:var(--muted);font-size:12px">${s.reason}</td>
-      <td style="color:var(--muted);font-size:12px">${s.recommendation || ''}</td>
-    </tr>`).join('') || '<tr class="empty-row"><td colspan="4">Keine aktiven SKIP-Strategien</td></tr>';
 
-  document.getElementById('dashboard').style.display = 'block';
-}
+def fetch_budget_recommendations(client, customer_id) -> Dict[str, dict]:
+    """Gibt budget recommendations pro bidding_strategy resource_name zurück."""
+    recs = {}
+    try:
+        for r in search(client, customer_id, gaql_budget_recommendations()):
+            strategy_rn = r.campaign.bidding_strategy
+            if not strategy_rn:
+                continue
+            rec = r.recommendation.campaign_budget_recommendation
+            recs[strategy_rn] = {
+                "current_budget_micros": safe_int(rec.current_budget_amount_micros),
+                "recommended_budget_micros": safe_int(rec.recommended_budget_amount_micros),
+            }
+    except Exception:
+        pass  # Recommendations API kann leer sein
+    return recs
 
-async function applyChanges() {
-  if (!analysisData) return;
-  const includeWarn = document.getElementById('includeWarn').checked;
-  const customerId = document.getElementById('customerId').value.trim();
 
-  if (!confirm(`${analysisData.summary.total_actionable} Caps applyen?${includeWarn ? ' + WARN Fälle' : ''})`)) return;
+# ============================
+# CLASSIFY LOGIC
+# ============================
 
-  const btn = document.getElementById('applyBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Applying…';
+def classify_and_compute(strategies, metrics, budget_recs):
+    for rn, s in strategies.items():
 
-  try {
-    const res = await fetch('/api/apply', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ customer_id: customerId, include_warn: includeWarn })
-    });
-    const data = await res.json();
+        # Health metrics aus 30d
+        m30 = metrics.get(rn, {}).get("30d", {})
+        s.budget_lost_is_30d = m30.get("budget_lost_is", 0.0)
+        s.rank_lost_is_30d = m30.get("rank_lost_is", 0.0)
+        s.impressions_30d = m30.get("impressions", 0)
+        if s.impressions_30d > 0 and s.budget_lost_is_30d > 0:
+            s.lost_impressions_budget = int(
+                s.impressions_30d * s.budget_lost_is_30d / (1 - s.budget_lost_is_30d)
+                if s.budget_lost_is_30d < 1 else s.impressions_30d
+            )
 
-    if (data.error) {
-      showError(data.error, data.details);
-      return;
+        # Budget recommendation
+        rec = budget_recs.get(rn, {})
+        if rec:
+            s.budget_recommendation_micros = rec.get("current_budget_micros")
+            s.recommended_budget_micros = rec.get("recommended_budget_micros")
+
+        if s.enabled_campaigns <= 0:
+            s.bucket = "SKIP"
+            s.reason = "no enabled campaigns"
+            continue
+
+        if s.current_cap_micros is None:
+            s.bucket = "SKIP"
+            s.reason = "no CPC cap set"
+            continue
+
+        m = metrics.get(rn, {})
+        s.clicks_7d = m.get("7d", {}).get("clicks", 0)
+        s.clicks_14d = m.get("14d", {}).get("clicks", 0)
+        s.clicks_30d = m.get("30d", {}).get("clicks", 0)
+        s.avg_cpc_7d_micros = m.get("7d", {}).get("avg_cpc", 0)
+        s.avg_cpc_14d_micros = m.get("14d", {}).get("avg_cpc", 0)
+        s.avg_cpc_30d_micros = m.get("30d", {}).get("avg_cpc", 0)
+        s.ctr_7d = m.get("7d", {}).get("ctr", 0.0)
+        s.ctr_14d = m.get("14d", {}).get("ctr", 0.0)
+        s.ctr_30d = m.get("30d", {}).get("ctr", 0.0)
+
+        gate_14 = s.clicks_14d >= 15
+        gate_30 = s.clicks_30d >= 30
+        warn = (s.clicks_14d == 14) or (s.clicks_30d == 29)
+
+        def set_cap(new_cap):
+            s.new_cap_micros = new_cap
+            s.cap_delta_micros = new_cap - (s.current_cap_micros or 0)
+            if new_cap > MAX_CAP_WARNING_MICROS:
+                s.reason += f" | ⚠️ new cap > {MAX_CAP_WARNING_EUR:.2f}€"
+
+        # NEAR30_READY
+        if gate_14 and (NEAR30_MIN <= s.clicks_30d <= NEAR30_MAX) and s.avg_cpc_30d_micros > 0:
+            s.bucket = "NEAR30_READY"
+            s.basis_window = "near30(30d)"
+            s.basis_avg_cpc_micros = s.avg_cpc_30d_micros
+            s.reason = f"clicks30={s.clicks_30d} near 30, 30d avgCPC +10%"
+            set_cap(compute_new_cap_plus10(s.basis_avg_cpc_micros))
+            if not apply_no_decrease_near15_rule(s):
+                pass
+            continue
+
+        # READY
+        if gate_14 or gate_30:
+            s.bucket = "READY"
+            candidates = []
+            if gate_14 and s.avg_cpc_14d_micros > 0:
+                candidates.append(("14d", s.avg_cpc_14d_micros))
+            if gate_30 and s.avg_cpc_30d_micros > 0:
+                candidates.append(("30d", s.avg_cpc_30d_micros))
+            if not candidates:
+                s.bucket = "SKIP"
+                s.reason = "no valid avg CPC"
+                continue
+            chosen_window, chosen_cpc = sorted(candidates, key=lambda x: x[1])[0]
+            s.basis_window = "14d+30d(min)" if len(candidates) == 2 else chosen_window
+            s.basis_avg_cpc_micros = chosen_cpc
+            s.reason = f"basis={s.basis_window}, +10%"
+            set_cap(compute_new_cap_plus10(s.basis_avg_cpc_micros))
+            apply_no_decrease_near15_rule(s)
+            continue
+
+        # WARN
+        if warn:
+            s.bucket = "WARN"
+            s.reason = "near threshold (override possible)"
+            candidates = []
+            if s.clicks_14d == 14 and s.avg_cpc_14d_micros > 0:
+                candidates.append(("14d", s.avg_cpc_14d_micros))
+            if s.clicks_30d == 29 and s.avg_cpc_30d_micros > 0:
+                candidates.append(("30d", s.avg_cpc_30d_micros))
+            if candidates:
+                chosen_window, chosen_cpc = sorted(candidates, key=lambda x: x[1])[0]
+                s.basis_window = chosen_window
+                s.basis_avg_cpc_micros = chosen_cpc
+                set_cap(compute_new_cap_plus10(s.basis_avg_cpc_micros))
+                apply_no_decrease_near15_rule(s)
+            continue
+
+        # LOWVOL_READY
+        if s.clicks_14d < 15 and s.clicks_30d < 30 and s.ctr_30d > s.ctr_14d:
+            s.bucket = "LOWVOL_READY"
+            basis_cpc = s.avg_cpc_30d_micros if s.avg_cpc_30d_micros > 0 else s.avg_cpc_14d_micros
+            if not basis_cpc:
+                s.bucket = "SKIP"
+                s.reason = "LOWVOL: no avg CPC"
+                continue
+            s.basis_window = "lowvol(30d)" if s.avg_cpc_30d_micros > 0 else "lowvol(fallback14d)"
+            s.basis_avg_cpc_micros = basis_cpc
+            s.reason = f"CTR30({s.ctr_30d*100:.1f}%) > CTR14({s.ctr_14d*100:.1f}%)"
+            set_cap(compute_new_cap_plus10(s.basis_avg_cpc_micros))
+            apply_no_decrease_near15_rule(s)
+            continue
+
+        # LOWVOL_DECREASE
+        if s.clicks_14d < 15 and s.clicks_30d < 30:
+            if s.avg_cpc_30d_micros > 0 and s.avg_cpc_14d_micros > 0:
+                if s.avg_cpc_30d_micros > s.avg_cpc_14d_micros:
+                    target = compute_new_cap_plus10(s.avg_cpc_30d_micros)
+                    if target < (s.current_cap_micros or 0):
+                        s.bucket = "LOWVOL_DECREASE"
+                        s.basis_window = "lowvol_decrease(30d)"
+                        s.basis_avg_cpc_micros = s.avg_cpc_30d_micros
+                        s.reason = "cap too high vs 30d avgCPC +10%"
+                        set_cap(target)
+                        apply_no_decrease_near15_rule(s)
+                        continue
+
+        s.bucket = "SKIP"
+        s.reason = "insufficient clicks"
+        s.recommendation = "Umkreis erweitern"
+
+
+# ============================
+# APPLY
+# ============================
+
+def apply_updates(client, customer_id, strategies: List[StrategyRow]) -> List[str]:
+    service = client.get_service("BiddingStrategyService")
+    ops = []
+    applied = []
+
+    for s in strategies:
+        if s.new_cap_micros is None or s.current_cap_micros is None:
+            continue
+        if s.new_cap_micros == s.current_cap_micros:
+            continue
+        bs = client.get_type("BiddingStrategy")
+        bs.resource_name = s.resource_name
+        bs.target_spend.cpc_bid_ceiling_micros = s.new_cap_micros
+        op = client.get_type("BiddingStrategyOperation")
+        op.update.resource_name = bs.resource_name
+        op.update.target_spend.cpc_bid_ceiling_micros = bs.target_spend.cpc_bid_ceiling_micros
+        client.copy_from(op.update_mask, FieldMask(paths=["target_spend.cpc_bid_ceiling_micros"]))
+        ops.append(op)
+        applied.append(f"{s.name}: {micros_to_str(s.current_cap_micros)}€ → {micros_to_str(s.new_cap_micros)}€")
+
+    if ops:
+        service.mutate_bidding_strategies(customer_id=customer_id, operations=ops)
+
+    return applied
+
+
+# ============================
+# MAIN ANALYSIS FUNCTION
+# ============================
+
+def run_analysis(customer_id: str) -> dict:
+    client = get_client()
+
+    strategies = fetch_strategies(client, customer_id)
+    if not strategies:
+        return {"error": "No TARGET_SPEND strategies found"}
+
+    fetch_enabled_campaign_counts(client, customer_id, strategies)
+    metrics = fetch_metrics_aggregated(client, customer_id)
+    budget_recs = fetch_budget_recommendations(client, customer_id)
+    cap_status = fetch_campaign_cap_status(client, customer_id)
+    classify_and_compute(strategies, metrics, budget_recs)
+
+    # Cap/Budget-Limitierung in Strategien schreiben
+    for rn, s in strategies.items():
+        cs = cap_status.get(rn, {})
+        s.cap_limited_campaigns = cs.get("cap_limited", 0)
+        s.budget_limited_campaigns = cs.get("budget_limited", 0)
+
+    # Buckets aufteilen
+    buckets = {"NEAR30_READY": [], "READY": [], "LOWVOL_READY": [],
+               "LOWVOL_DECREASE": [], "WARN": [], "SKIP": []}
+    for s in strategies.values():
+        buckets[s.bucket].append(asdict(s))
+
+    # Delta-Zusammenfassung
+    actionable = [s for s in strategies.values()
+                  if s.bucket in ("NEAR30_READY", "READY", "LOWVOL_READY", "LOWVOL_DECREASE")
+                  and s.new_cap_micros is not None
+                  and s.new_cap_micros != s.current_cap_micros]
+
+    total_increases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros > 0)
+    total_decreases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros < 0)
+    net_delta = total_increases + total_decreases
+
+    # Health summary: cap- und budget-limitierte Strategien
+    def get_action(s, cs):
+        cap_lim = cs.get("cap_limited", 0)
+        bud_lim = cs.get("budget_limited", 0)
+        total = cs.get("total", s.enabled_campaigns) or 1
+
+        if cap_lim == 0 and bud_lim == 0:
+            return None
+
+        cap_planned = s.bucket in ("NEAR30_READY", "READY", "LOWVOL_READY") and s.new_cap_micros and s.new_cap_micros > (s.current_cap_micros or 0)
+        cap_skip = s.bucket == "SKIP"
+
+        parts = []
+
+        if cap_lim > 0 and bud_lim > 0:
+            if cap_planned:
+                parts.append(f"⚠️ Cap-Erhöhung geplant ({cap_lim}/{total} Kampagnen) — danach Budget prüfen")
+            else:
+                parts.append(f"🔴 Erst Cap erhöhen ({cap_lim}/{total} Kampagnen), dann Budget prüfen")
+        elif cap_lim > 0:
+            if cap_planned:
+                parts.append(f"✅ Cap-Erhöhung bereits geplant ({cap_lim}/{total} Kampagnen eingeschränkt)")
+            elif cap_skip:
+                parts.append(f"⏳ Cap erhöhen sobald genug Klickdaten ({cap_lim}/{total} Kampagnen eingeschränkt)")
+            else:
+                parts.append(f"⚠️ Cap erhöhen — {cap_lim}/{total} Kampagnen durch Gebotslimit eingeschränkt")
+        elif bud_lim > 0:
+            parts.append(f"💰 Tagesbudget erhöhen — {bud_lim}/{total} Kampagnen budget-limitiert")
+
+        return " | ".join(parts)
+
+    budget_limited = []
+    for s in strategies.values():
+        if s.enabled_campaigns <= 0:
+            continue
+        cs = cap_status.get(s.resource_name, {})
+        action = get_action(s, cs)
+        if not action:
+            continue
+        cap_delta_str = None
+        if s.new_cap_micros and s.current_cap_micros:
+            delta = (s.new_cap_micros - s.current_cap_micros) / 1_000_000
+            if delta != 0:
+                cap_delta_str = f"{'+' if delta > 0 else ''}{delta:.2f}€"
+        budget_limited.append({
+            "name": s.name,
+            "bucket": s.bucket,
+            "cap_limited": cs.get("cap_limited", 0),
+            "budget_limited": cs.get("budget_limited", 0),
+            "total_campaigns": cs.get("total", s.enabled_campaigns),
+            "cap_alt": micros_to_str(s.current_cap_micros),
+            "cap_neu": micros_to_str(s.new_cap_micros) if s.new_cap_micros else None,
+            "cap_delta": cap_delta_str,
+            "action": action,
+            "campaign_details": cs.get("campaigns", []),
+        })
+    budget_limited.sort(key=lambda x: x["cap_limited"], reverse=True)
+
+    return {
+        "customer_id": customer_id,
+        "buckets": buckets,
+        "debug_cap_statuses": list(cap_status.get("_debug_all_statuses", [])),
+        "summary": {
+            "total_actionable": len(actionable),
+            "total_increases_eur": round(total_increases / 1_000_000, 2),
+            "total_decreases_eur": round(total_decreases / 1_000_000, 2),
+            "net_delta_eur": round(net_delta / 1_000_000, 2),
+            "increases_count": sum(1 for s in actionable if s.cap_delta_micros > 0),
+            "decreases_count": sum(1 for s in actionable if s.cap_delta_micros < 0),
+        },
+        "budget_limited": budget_limited,
     }
 
-    const box = document.getElementById('resultBox');
-    document.getElementById('resultList').innerHTML = data.applied.map(a => `<li>✓ ${a}</li>`).join('');
-    box.style.display = 'block';
-    box.scrollIntoView({ behavior: 'smooth' });
 
-    // Re-analyze nach Apply
-    setTimeout(() => analyze(), 2000);
+# ============================
+# API ROUTES
+# ============================
 
-  } catch (e) {
-    showError('Apply fehlgeschlagen: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✅ Apply Changes';
-  }
-}
+@app.get("/", response_class=HTMLResponse)
+async def dashboard():
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "index.html")
+    with open(template_path) as f:
+        return f.read()
 
-function toggleSection(id) {
-  const el = document.getElementById(id);
-  const toggle = el.previousElementSibling.querySelector('.collapse-toggle');
-  if (el.style.display === 'none') {
-    el.style.display = 'block';
-    toggle.classList.remove('collapsed');
-  } else {
-    el.style.display = 'none';
-    toggle.classList.add('collapsed');
-  }
-}
 
-// Customer ID aus URL-Param laden
-const urlParams = new URLSearchParams(window.location.search);
-const cidParam = urlParams.get('cid');
-if (cidParam) {
-  document.getElementById('customerId').value = cidParam;
-}
-</script>
-</body>
-</html>
+@app.get("/api/analyze")
+async def analyze(customer_id: str = ""):
+    cid = customer_id or CUSTOMER_ID
+    if not cid:
+        return JSONResponse({"error": "No customer_id provided"}, status_code=400)
+    try:
+        result = run_analysis(cid.replace("-", ""))
+        return JSONResponse(result)
+    except GoogleAdsException as ex:
+        errors = [{"code": str(e.error_code), "message": e.message}
+                  for e in ex.failure.errors]
+        return JSONResponse({"error": "Google Ads API error", "details": errors}, status_code=500)
+    except Exception as ex:
+        return JSONResponse({"error": str(ex)}, status_code=500)
+
+
+@app.post("/api/apply")
+async def apply(payload: dict):
+    customer_id = payload.get("customer_id", CUSTOMER_ID).replace("-", "")
+    buckets_to_apply = payload.get("buckets", ["NEAR30_READY", "READY", "LOWVOL_READY", "LOWVOL_DECREASE"])
+    include_warn = payload.get("include_warn", False)
+
+    try:
+        client = get_client()
+        strategies = fetch_strategies(client, customer_id)
+        fetch_enabled_campaign_counts(client, customer_id, strategies)
+        metrics = fetch_metrics_aggregated(client, customer_id)
+        budget_recs = fetch_budget_recommendations(client, customer_id)
+        classify_and_compute(strategies, metrics, budget_recs)
+
+        to_apply = [s for s in strategies.values() if s.bucket in buckets_to_apply]
+        if include_warn:
+            to_apply += [s for s in strategies.values()
+                         if s.bucket == "WARN" and s.new_cap_micros is not None]
+
+        applied = apply_updates(client, customer_id, to_apply)
+        return JSONResponse({"applied": applied, "count": len(applied)})
+
+    except GoogleAdsException as ex:
+        errors = [{"code": str(e.error_code), "message": e.message}
+                  for e in ex.failure.errors]
+        return JSONResponse({"error": "Google Ads API error", "details": errors}, status_code=500)
+    except Exception as ex:
+        return JSONResponse({"error": str(ex)}, status_code=500)
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
