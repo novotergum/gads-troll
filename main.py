@@ -627,34 +627,74 @@ def run_analysis(customer_id: str) -> dict:
 
     # Health summary: cap- und budget-limitierte Strategien
     def get_action(s, cs):
-        cap_lim = cs.get("cap_limited", 0)
+        # Cap-Limitierung: entweder system_status ODER rank_lost_is > 30%
+        cap_lim_api = cs.get("cap_limited", 0)
         bud_lim = cs.get("budget_limited", 0)
         total = cs.get("total", s.enabled_campaigns) or 1
 
-        if cap_lim == 0 and bud_lim == 0:
+        # rank_lost_is als Cap-Signal (zuverlässiger als system_status)
+        rank_lost_pct = round(s.rank_lost_is_30d * 100, 1)
+        rank_cap_signal = s.rank_lost_is_30d > 0.30 and s.enabled_campaigns > 0
+
+        # Budget-Signal aus aggregierten Metriken
+        budget_signal = s.budget_lost_is_30d > 0.05
+
+        cap_lim = cap_lim_api  # aus system_status (falls verfügbar)
+
+        if cap_lim == 0 and not rank_cap_signal and not budget_signal:
             return None
 
-        cap_planned = s.bucket in ("NEAR30_READY", "READY", "LOWVOL_READY") and s.new_cap_micros and s.new_cap_micros > (s.current_cap_micros or 0)
+        # Cap ist bereits korrekt gesetzt wenn new_cap == current_cap (±0)
+        cap_already_optimal = (
+            s.new_cap_micros is not None
+            and s.current_cap_micros is not None
+            and s.new_cap_micros == s.current_cap_micros
+        )
+        cap_increase_planned = (
+            s.new_cap_micros is not None
+            and s.current_cap_micros is not None
+            and s.new_cap_micros > s.current_cap_micros
+        )
         cap_skip = s.bucket == "SKIP"
 
         parts = []
 
-        if cap_lim > 0 and bud_lim > 0:
-            if cap_planned:
-                parts.append(f"⚠️ Cap-Erhöhung geplant ({cap_lim}/{total} Kampagnen) — danach Budget prüfen")
+        if rank_cap_signal and budget_signal:
+            if cap_already_optimal:
+                parts.append(f"✅ Cap optimiert (avgCPC +10%) — Budget prüfen | IS Rang: {rank_pct(s.rank_lost_is_30d)}, Budget: {rank_pct(s.budget_lost_is_30d)}")
+            elif cap_increase_planned:
+                parts.append(f"⚠️ Cap-Erhöhung geplant — danach Budget prüfen | IS Rang: {rank_pct(s.rank_lost_is_30d)}")
             else:
-                parts.append(f"🔴 Erst Cap erhöhen ({cap_lim}/{total} Kampagnen), dann Budget prüfen")
-        elif cap_lim > 0:
-            if cap_planned:
-                parts.append(f"✅ Cap-Erhöhung bereits geplant ({cap_lim}/{total} Kampagnen eingeschränkt)")
+                parts.append(f"🔴 Cap + Budget limitiert — Cap erhöhen | IS Rang: {rank_pct(s.rank_lost_is_30d)}, Budget: {rank_pct(s.budget_lost_is_30d)}")
+        elif rank_cap_signal:
+            if cap_already_optimal:
+                parts.append(f"✅ Cap auf avgCPC +10% optimiert — Google braucht ~24h | IS Rang: {rank_pct(s.rank_lost_is_30d)}")
+            elif cap_increase_planned:
+                parts.append(f"⚠️ Cap-Erhöhung geplant | IS Rang: {rank_pct(s.rank_lost_is_30d)}")
             elif cap_skip:
-                parts.append(f"⏳ Cap erhöhen sobald genug Klickdaten ({cap_lim}/{total} Kampagnen eingeschränkt)")
+                parts.append(f"⏳ Zu wenig Klickdaten — Cap kann noch nicht angepasst werden | IS Rang: {rank_pct(s.rank_lost_is_30d)}")
             else:
-                parts.append(f"⚠️ Cap erhöhen — {cap_lim}/{total} Kampagnen durch Gebotslimit eingeschränkt")
-        elif bud_lim > 0:
-            parts.append(f"💰 Tagesbudget erhöhen — {bud_lim}/{total} Kampagnen budget-limitiert")
+                parts.append(f"⚠️ Cap erhöhen | IS Rang: {rank_pct(s.rank_lost_is_30d)}")
+        elif budget_signal:
+            parts.append(f"💰 Budget erhöhen | IS Budget: {rank_pct(s.budget_lost_is_30d)}")
 
-        return " | ".join(parts)
+        # system_status cap-limitiert aber kein rank_cap_signal und kein budget_signal
+        if not parts and cs.get("cap_limited", 0) > 0:
+            total = cs.get("total", s.enabled_campaigns) or 1
+            cap_lim = cs.get("cap_limited", 0)
+            if cap_already_optimal:
+                parts.append(f"✅ Cap optimiert ({cap_lim}/{total} Kamp.) — Google braucht ~24h")
+            elif cap_increase_planned:
+                parts.append(f"⚠️ Cap-Erhöhung geplant ({cap_lim}/{total} Kamp.)")
+            elif cap_skip:
+                parts.append(f"⏳ Zu wenig Klickdaten ({cap_lim}/{total} Kamp. eingeschränkt)")
+            else:
+                parts.append(f"⚠️ Cap erhöhen — {cap_lim}/{total} Kamp. durch Gebotslimit")
+
+        return " | ".join(parts) if parts else None
+
+    def rank_pct(val: float) -> str:
+        return f"{round(val * 100, 1)}%"
 
     budget_limited = []
     for s in strategies.values():
