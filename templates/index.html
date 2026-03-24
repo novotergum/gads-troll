@@ -520,7 +520,7 @@ async function applyChanges() {
   const includeWarn = document.getElementById('includeWarn').checked;
   const customerId = document.getElementById('customerId').value.trim();
 
-  if (!confirm(`${analysisData.summary.total_actionable} Caps applyen?${includeWarn ? ' + WARN Fälle' : ''}')) return;
+  if (!confirm(`${analysisData.summary.total_actionable} Caps applyen?${includeWarn ? ' + WARN Fälle' : ''})`)) return;
 
   const btn = document.getElementById('applyBtn');
   btn.disabled = true;
