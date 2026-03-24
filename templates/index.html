@@ -267,7 +267,7 @@
     <div class="section" id="budgetHealthSection">
       <div class="section-header">
         <div class="section-title collapse-toggle" onclick="toggleSection('budgetHealth')">
-          🔴 Budget-limitierte Strategien
+          ⚡ Cap &amp; Budget Health
           <span class="badge" id="budgetLimitedCount">0</span>
         </div>
       </div>
@@ -277,9 +277,11 @@
             <thead>
               <tr>
                 <th>Strategie</th>
-                <th data-tip="Search IS verloren durch Budget-Limit (30T)">IS Lost (Budget)</th>
-                <th data-tip="Geschätzte verlorene Impressionen durch Budget-Limit">Lost Impressions</th>
-                <th data-tip="Google-Empfehlung für neues Tagesbudget">Budget-Empfehlung</th>
+                <th>Bucket</th>
+                <th data-tip="Kampagnen mit Gebotslimit-Einschränkung">Cap-limitiert</th>
+                <th data-tip="Kampagnen mit Budget-Einschränkung">Budget-limitiert</th>
+                <th>Cap Alt → Neu</th>
+                <th>Handlungsempfehlung</th>
               </tr>
             </thead>
             <tbody id="budgetHealthBody"></tbody>
@@ -438,26 +440,26 @@ function renderDashboard(data) {
 
   document.getElementById('applyCount').textContent = s.total_actionable;
 
-  // Budget Health
+  // Cap & Budget Health
   const bl = data.budget_limited;
   document.getElementById('budgetLimitedCount').textContent = bl.length;
   const bhBody = document.getElementById('budgetHealthBody');
   if (bl.length === 0) {
-    bhBody.innerHTML = '<tr class="empty-row"><td colspan="4">Keine budget-limitierten Strategien</td></tr>';
+    bhBody.innerHTML = '<tr class="empty-row"><td colspan="6">Keine cap- oder budget-limitierten Strategien</td></tr>';
   } else {
     bhBody.innerHTML = bl.map(b => {
-      const pct = b.budget_lost_is;
-      const color = pct > 30 ? '#ef4444' : pct > 15 ? '#f59e0b' : '#22c55e';
+      const capColor = b.cap_limited === b.total_campaigns ? '#ef4444' : b.cap_limited > 0 ? '#f59e0b' : '#8892a4';
+      const budColor = b.budget_limited > 0 ? '#f59e0b' : '#8892a4';
+      const actionColor = b.action.startsWith('🔴') ? '#ef4444' : b.action.startsWith('⚠️') ? '#f59e0b' : b.action.startsWith('✅') ? '#22c55e' : '#3b82f6';
+      const capChange = b.cap_delta ? `<span class="mono" style="color:${b.cap_delta.startsWith('+') ? '#22c55e' : '#ef4444'}">${b.cap_delta}</span>` : '—';
+      const capStr = b.cap_alt && b.cap_neu ? `${b.cap_alt}€ → ${b.cap_neu}€ ${capChange}` : b.cap_alt ? `${b.cap_alt}€` : '—';
       return `<tr>
         <td class="name-cell">${b.name}</td>
-        <td>
-          <div class="is-bar-wrap">
-            <div class="is-bar-bg"><div class="is-bar-fill" style="width:${Math.min(pct,100)}%;background:${color}"></div></div>
-            <span class="is-val" style="color:${color}">${pct}%</span>
-          </div>
-        </td>
-        <td class="mono">${b.lost_impressions > 0 ? '~' + b.lost_impressions.toLocaleString('de') : '—'}</td>
-        <td class="mono">${b.recommended_budget ? b.recommended_budget + ' €/Tag' : '—'}</td>
+        <td><span class="bucket-pill pill-${b.bucket}">${b.bucket}</span></td>
+        <td style="color:${capColor};font-weight:600">${b.cap_limited}/${b.total_campaigns}</td>
+        <td style="color:${budColor};font-weight:600">${b.budget_limited}/${b.total_campaigns}</td>
+        <td class="mono" style="font-size:12px">${capStr}</td>
+        <td style="color:${actionColor};font-size:12px;font-weight:500">${b.action}</td>
       </tr>`;
     }).join('');
   }
