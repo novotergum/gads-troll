@@ -131,7 +131,7 @@ def get_client() -> GoogleAdsClient:
         "login_customer_id": os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", ""),
         "use_proto_plus": True,
     }
-    return GoogleAdsClient.load_from_dict(config, version="v21")
+    return GoogleAdsClient.load_from_dict(config, version="v18")
 
 
 def search(client: GoogleAdsClient, customer_id: str, query: str):
@@ -474,8 +474,9 @@ def apply_updates(client, customer_id, strategies: List[StrategyRow]) -> List[st
         bs.resource_name = s.resource_name
         bs.target_spend.cpc_bid_ceiling_micros = s.new_cap_micros
         op = client.get_type("BiddingStrategyOperation")
-        op.update.CopyFrom(bs)
-        op.update_mask.CopyFrom(FieldMask(paths=["target_spend.cpc_bid_ceiling_micros"]))
+        op.update.resource_name = bs.resource_name
+        op.update.target_spend.cpc_bid_ceiling_micros = bs.target_spend.cpc_bid_ceiling_micros
+        client.copy_from(op.update_mask, FieldMask(paths=["target_spend.cpc_bid_ceiling_micros"]))
         ops.append(op)
         applied.append(f"{s.name}: {micros_to_str(s.current_cap_micros)}€ → {micros_to_str(s.new_cap_micros)}€")
 
