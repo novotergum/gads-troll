@@ -83,6 +83,10 @@ class StrategyRow:
     reason: str = ""
     recommendation: str = ""
 
+    # Prioritäts-Score
+    click_opportunity: float = 0.0
+    score: float = 0.0
+
 
 @dataclass
 class MetricsAccumulator:
@@ -135,7 +139,7 @@ def get_client() -> GoogleAdsClient:
         "login_customer_id": os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", ""),
         "use_proto_plus": True,
     }
-    return GoogleAdsClient.load_from_dict(config, version="v21")
+    return GoogleAdsClient.load_from_dict(config, version="v18")
 
 
 def search(client: GoogleAdsClient, customer_id: str, query: str):
@@ -555,6 +559,15 @@ def classify_and_compute(strategies, metrics, budget_recs):
         s.reason = "insufficient clicks"
         s.recommendation = "Umkreis erweitern"
 
+    # Score berechnen für alle Strategien (nach Bucket-Klassifizierung)
+    for rn, s in strategies.items():
+        if s.clicks_30d > 0 and s.rank_lost_is_30d > 0:
+            s.click_opportunity = s.clicks_30d * s.rank_lost_is_30d
+        else:
+            s.click_opportunity = 0.0
+        confidence = min(1.0, s.clicks_30d / 50)
+        s.score = s.click_opportunity * confidence
+
 
 # ============================
 # APPLY
@@ -616,10 +629,14 @@ def run_analysis(customer_id: str) -> dict:
         buckets[s.bucket].append(asdict(s))
 
     # Delta-Zusammenfassung
-    actionable = [s for s in strategies.values()
-                  if s.bucket in ("NEAR30_READY", "READY", "LOWVOL_READY", "LOWVOL_DECREASE")
-                  and s.new_cap_micros is not None
-                  and s.new_cap_micros != s.current_cap_micros]
+    actionable = sorted(
+        [s for s in strategies.values()
+         if s.bucket in ("NEAR30_READY", "READY", "LOWVOL_READY", "LOWVOL_DECREASE")
+         and s.new_cap_micros is not None
+         and s.new_cap_micros != s.current_cap_micros],
+        key=lambda s: s.score,
+        reverse=True
+    )
 
     total_increases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros > 0)
     total_decreases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros < 0)
@@ -728,7 +745,11 @@ def run_analysis(customer_id: str) -> dict:
             "action": action,
             "campaign_details": cs.get("campaigns", []),
         })
-    budget_limited.sort(key=lambda x: x["cap_limited"], reverse=True)
+    # Score aus Strategie-Objekt in budget_limited eintragen und nach Score sortieren
+    strategy_scores = {s.name: s.score for s in strategies.values()}
+    for item in budget_limited:
+        item["score"] = strategy_scores.get(item["name"], 0.0)
+    budget_limited.sort(key=lambda x: x["score"], reverse=True)
 
     # SKIP breakdown
     skips = [s for s in strategies.values() if s.bucket == "SKIP"]
