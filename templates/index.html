@@ -434,7 +434,14 @@ function renderDashboard(data) {
     <div class="card">
       <div class="card-label">Budget-limitiert</div>
       <div class="card-value warn-color">${data.budget_limited.length}</div>
-      <div class="card-sub">Strategien > 5% IS lost</div>
+      <div class="card-sub">Strategien mit Cap/Budget-Limit</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Gewichtetes Delta</div>
+      <div class="card-value ${s.weighted_delta_eur >= 0 ? 'positive' : 'negative'}">
+        ${s.weighted_delta_eur >= 0 ? '+' : ''}${s.weighted_delta_eur.toFixed(2)}€
+      </div>
+      <div class="card-sub">Cap-Delta × Kampagnen</div>
     </div>
   `;
 
@@ -485,8 +492,11 @@ function renderDashboard(data) {
         const deltaEur = (delta / 1e6).toFixed(2);
         const deltaClass = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero';
         const deltaText = delta > 0 ? `+${deltaEur}€` : delta < 0 ? `${deltaEur}€` : '±0';
-        const budgetLost = s.budget_lost_is_30d > 0 ?
-          `<span style="color:${s.budget_lost_is_30d > 0.3 ? '#ef4444' : '#f59e0b'}">${(s.budget_lost_is_30d*100).toFixed(1)}%</span>` : '—';
+        const rankLost = s.rank_lost_is_30d > 0.05 ?
+          `<span style="color:${s.rank_lost_is_30d > 0.5 ? '#ef4444' : s.rank_lost_is_30d > 0.3 ? '#f59e0b' : '#8892a4'}" title="IS lost durch Rang (Cap-Signal)">${(s.rank_lost_is_30d*100).toFixed(1)}%↓</span>` : '';
+        const budgetLost = s.budget_lost_is_30d > 0.01 ?
+          `<span style="color:#3b82f6" title="IS lost durch Budget">${(s.budget_lost_is_30d*100).toFixed(1)}%💰</span>` : '';
+        const isLostCell = [rankLost, budgetLost].filter(Boolean).join(' ') || '—';
         return `<tr class="bucket-${s.bucket}">
           <td class="name-cell">${s.name}</td>
           <td><span class="bucket-pill pill-${s.bucket}">${s.bucket}</span></td>
@@ -496,7 +506,7 @@ function renderDashboard(data) {
           <td class="mono">${s.current_cap_micros ? (s.current_cap_micros/1e6).toFixed(2) : '—'}€</td>
           <td class="mono">${s.new_cap_micros ? (s.new_cap_micros/1e6).toFixed(2) : '—'}€</td>
           <td><span class="delta ${deltaClass}">${deltaText}</span></td>
-          <td>${budgetLost}</td>
+          <td>${isLostCell}</td>
           <td style="color:var(--muted);font-size:12px;max-width:200px">${s.reason || ''}</td>
         </tr>`;
       }).join('');
