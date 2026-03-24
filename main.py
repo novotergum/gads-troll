@@ -259,9 +259,21 @@ def fetch_strategies(client, customer_id) -> Dict[str, StrategyRow]:
 
 
 def fetch_enabled_campaign_counts(client, customer_id, strategies):
+    # Ein einziger Query statt N einzelne (N = Anzahl Strategien)
+    q = """
+    SELECT campaign.bidding_strategy, campaign.id
+    FROM campaign
+    WHERE
+      campaign.status = ENABLED
+      AND campaign.bidding_strategy IS NOT NULL
+    """
+    counts = {}
+    for r in search(client, customer_id, q):
+        rn = r.campaign.bidding_strategy
+        counts[rn] = counts.get(rn, 0) + 1
+
     for s in strategies.values():
-        count = sum(1 for _ in search(client, customer_id, gaql_enabled_campaign_count(s.resource_name)))
-        s.enabled_campaigns = count
+        s.enabled_campaigns = counts.get(s.resource_name, 0)
 
 
 def fetch_metrics_aggregated(client, customer_id) -> Dict[str, Dict[str, dict]]:
