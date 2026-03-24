@@ -379,7 +379,7 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
                 status_name in CAP_LIMITED_STATUSES
                 or (status_int >= 2 and status_int not in (0, 1))
             )
-            is_budget = budget_lost > 0.10
+            is_budget = budget_lost > 0.03
 
             if is_cap:
                 result[rn]["cap_limited"] += 1
@@ -625,6 +625,13 @@ def run_analysis(customer_id: str) -> dict:
     total_decreases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros < 0)
     net_delta = total_increases + total_decreases
 
+    # Gewichtetes Cap-Delta: cap_delta × enabled_campaigns pro Strategie
+    weighted_delta = sum(
+        s.cap_delta_micros * s.enabled_campaigns
+        for s in actionable
+        if s.cap_delta_micros > 0
+    )
+
     # Health summary: cap- und budget-limitierte Strategien
     def get_action(s, cs):
         # Cap-Limitierung: entweder system_status ODER rank_lost_is > 30%
@@ -723,6 +730,12 @@ def run_analysis(customer_id: str) -> dict:
         })
     budget_limited.sort(key=lambda x: x["cap_limited"], reverse=True)
 
+    # SKIP breakdown
+    skips = [s for s in strategies.values() if s.bucket == "SKIP"]
+    skip_no_campaigns = sum(1 for s in skips if s.enabled_campaigns <= 0)
+    skip_no_data = sum(1 for s in skips if s.enabled_campaigns > 0 and s.clicks_30d == 0)
+    skip_low_data = sum(1 for s in skips if s.enabled_campaigns > 0 and 0 < s.clicks_30d < 30)
+
     return {
         "customer_id": customer_id,
         "buckets": buckets,
@@ -734,6 +747,11 @@ def run_analysis(customer_id: str) -> dict:
             "net_delta_eur": round(net_delta / 1_000_000, 2),
             "increases_count": sum(1 for s in actionable if s.cap_delta_micros > 0),
             "decreases_count": sum(1 for s in actionable if s.cap_delta_micros < 0),
+            "weighted_delta_eur": round(weighted_delta / 1_000_000, 2),
+            "skip_total": len(skips),
+            "skip_no_campaigns": skip_no_campaigns,
+            "skip_no_data": skip_no_data,
+            "skip_low_data": skip_low_data,
         },
         "budget_limited": budget_limited,
     }
