@@ -66,6 +66,10 @@ class StrategyRow:
     impressions_30d: int = 0
     lost_impressions_budget: int = 0      # estimated lost impressions due to budget
 
+    # Cap-limitierte Kampagnen (system_status)
+    cap_limited_campaigns: int = 0     # Kampagnen mit TARGET_SPEND_OPTIMIZE_BIDS_TOO_LOW
+    budget_limited_campaigns: int = 0  # Kampagnen mit budget_lost_is > 0.1
+
     # Budget recommendation
     budget_recommendation_micros: Optional[int] = None
     recommended_budget_micros: Optional[int] = None
@@ -224,6 +228,21 @@ def gaql_metrics(during: str) -> str:
       AND campaign.bidding_strategy IS NOT NULL
     """
 
+def gaql_campaign_system_status() -> str:
+    return """
+    SELECT
+      campaign.bidding_strategy,
+      campaign.name,
+      campaign.bidding_strategy_system_status,
+      metrics.search_budget_lost_impression_share
+    FROM campaign
+    WHERE
+      campaign.status = ENABLED
+      AND campaign.bidding_strategy IS NOT NULL
+      AND segments.date DURING LAST_30_DAYS
+    """
+
+
 def gaql_budget_recommendations() -> str:
     return """
     SELECT
@@ -299,6 +318,58 @@ def fetch_metrics_aggregated(client, customer_id) -> Dict[str, Dict[str, dict]]:
 
     return {rn: {k: acc.finalize() for k, acc in windows_acc.items()}
             for rn, windows_acc in accumulators.items()}
+
+
+def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
+    """
+    Gibt pro Strategie zurück:
+    - cap_limited: Anzahl Kampagnen mit Cap-Limitierung
+    - budget_limited: Anzahl Kampagnen mit budget_lost_is > 10%
+    - total: Gesamtzahl Kampagnen
+    - campaign_details: Liste der limitierten Kampagnen
+    """
+    CAP_LIMITED_STATUSES = {
+        "TARGET_SPEND_OPTIMIZE_BIDS_TOO_LOW",
+        "TARGET_SPEND_CONSTRAINED_BY_BID_CEILING",
+        "BUDGET_CONSTRAINED",
+    }
+
+    result: Dict[str, dict] = {}
+
+    try:
+        for r in search(client, customer_id, gaql_campaign_system_status()):
+            rn = r.campaign.bidding_strategy
+            if not rn:
+                continue
+
+            status_str = str(r.campaign.bidding_strategy_system_status).split(".")[-1]
+            budget_lost = safe_float(r.metrics.search_budget_lost_impression_share)
+            camp_name = r.campaign.name
+
+            if rn not in result:
+                result[rn] = {"cap_limited": 0, "budget_limited": 0, "total": 0, "campaigns": []}
+
+            result[rn]["total"] += 1
+
+            is_cap = status_str in CAP_LIMITED_STATUSES
+            is_budget = budget_lost > 0.10
+
+            if is_cap:
+                result[rn]["cap_limited"] += 1
+            if is_budget:
+                result[rn]["budget_limited"] += 1
+            if is_cap or is_budget:
+                result[rn]["campaigns"].append({
+                    "name": camp_name,
+                    "cap_limited": is_cap,
+                    "budget_limited": is_budget,
+                    "status": status_str,
+                    "budget_lost_pct": round(budget_lost * 100, 1),
+                })
+    except Exception as e:
+        pass
+
+    return result
 
 
 def fetch_budget_recommendations(client, customer_id) -> Dict[str, dict]:
@@ -500,7 +571,14 @@ def run_analysis(customer_id: str) -> dict:
     fetch_enabled_campaign_counts(client, customer_id, strategies)
     metrics = fetch_metrics_aggregated(client, customer_id)
     budget_recs = fetch_budget_recommendations(client, customer_id)
+    cap_status = fetch_campaign_cap_status(client, customer_id)
     classify_and_compute(strategies, metrics, budget_recs)
+
+    # Cap/Budget-Limitierung in Strategien schreiben
+    for rn, s in strategies.items():
+        cs = cap_status.get(rn, {})
+        s.cap_limited_campaigns = cs.get("cap_limited", 0)
+        s.budget_limited_campaigns = cs.get("budget_limited", 0)
 
     # Buckets aufteilen
     buckets = {"NEAR30_READY": [], "READY": [], "LOWVOL_READY": [],
@@ -518,15 +596,63 @@ def run_analysis(customer_id: str) -> dict:
     total_decreases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros < 0)
     net_delta = total_increases + total_decreases
 
-    # Health summary: budget-limitierte Strategien
-    budget_limited = [
-        {"name": s.name, "budget_lost_is": round(s.budget_lost_is_30d * 100, 1),
-         "lost_impressions": s.lost_impressions_budget,
-         "recommended_budget": micros_to_str(s.recommended_budget_micros) if s.recommended_budget_micros else None}
-        for s in strategies.values()
-        if s.budget_lost_is_30d > 0.05 and s.enabled_campaigns > 0
-    ]
-    budget_limited.sort(key=lambda x: x["budget_lost_is"], reverse=True)
+    # Health summary: cap- und budget-limitierte Strategien
+    def get_action(s, cs):
+        cap_lim = cs.get("cap_limited", 0)
+        bud_lim = cs.get("budget_limited", 0)
+        total = cs.get("total", s.enabled_campaigns) or 1
+
+        if cap_lim == 0 and bud_lim == 0:
+            return None
+
+        cap_planned = s.bucket in ("NEAR30_READY", "READY", "LOWVOL_READY") and s.new_cap_micros and s.new_cap_micros > (s.current_cap_micros or 0)
+        cap_skip = s.bucket == "SKIP"
+
+        parts = []
+
+        if cap_lim > 0 and bud_lim > 0:
+            if cap_planned:
+                parts.append(f"⚠️ Cap-Erhöhung geplant ({cap_lim}/{total} Kampagnen) — danach Budget prüfen")
+            else:
+                parts.append(f"🔴 Erst Cap erhöhen ({cap_lim}/{total} Kampagnen), dann Budget prüfen")
+        elif cap_lim > 0:
+            if cap_planned:
+                parts.append(f"✅ Cap-Erhöhung bereits geplant ({cap_lim}/{total} Kampagnen eingeschränkt)")
+            elif cap_skip:
+                parts.append(f"⏳ Cap erhöhen sobald genug Klickdaten ({cap_lim}/{total} Kampagnen eingeschränkt)")
+            else:
+                parts.append(f"⚠️ Cap erhöhen — {cap_lim}/{total} Kampagnen durch Gebotslimit eingeschränkt")
+        elif bud_lim > 0:
+            parts.append(f"💰 Tagesbudget erhöhen — {bud_lim}/{total} Kampagnen budget-limitiert")
+
+        return " | ".join(parts)
+
+    budget_limited = []
+    for s in strategies.values():
+        if s.enabled_campaigns <= 0:
+            continue
+        cs = cap_status.get(s.resource_name, {})
+        action = get_action(s, cs)
+        if not action:
+            continue
+        cap_delta_str = None
+        if s.new_cap_micros and s.current_cap_micros:
+            delta = (s.new_cap_micros - s.current_cap_micros) / 1_000_000
+            if delta != 0:
+                cap_delta_str = f"{'+' if delta > 0 else ''}{delta:.2f}€"
+        budget_limited.append({
+            "name": s.name,
+            "bucket": s.bucket,
+            "cap_limited": cs.get("cap_limited", 0),
+            "budget_limited": cs.get("budget_limited", 0),
+            "total_campaigns": cs.get("total", s.enabled_campaigns),
+            "cap_alt": micros_to_str(s.current_cap_micros),
+            "cap_neu": micros_to_str(s.new_cap_micros) if s.new_cap_micros else None,
+            "cap_delta": cap_delta_str,
+            "action": action,
+            "campaign_details": cs.get("campaigns", []),
+        })
+    budget_limited.sort(key=lambda x: x["cap_limited"], reverse=True)
 
     return {
         "customer_id": customer_id,
