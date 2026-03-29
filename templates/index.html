@@ -89,6 +89,7 @@
   }
   .mode-btn.active { background: var(--blue); color: white; }
   .mode-btn.active.median-active { background: var(--purple); }
+  .mode-btn.active.asym-active   { background: linear-gradient(90deg, var(--green) 50%, var(--purple) 50%); color: white; }
 
   /* ── Apply Bar ── */
   .apply-bar {
@@ -321,6 +322,14 @@
     </div>
   </div>
 
+  <!-- Asym Banner -->
+  <div class="median-banner" id="asymBanner" style="background:rgba(34,197,94,0.07);border-color:rgba(34,197,94,0.25)">
+    <div>
+      <div class="median-banner-text" style="color:var(--green)">⚡ <strong>Asymmetrischer Modus aktiv</strong> — Erhöhungen sofort (Avg), Senkungen nur bei dauerhaft niedrigem Median</div>
+      <div class="median-banner-detail" id="asymBannerDetail"></div>
+    </div>
+  </div>
+
   <!-- Holiday Modal -->
   <div class="modal-overlay" id="holidayOverlay" onclick="overlayClick(event)">
     <div class="modal-box">
@@ -361,10 +370,11 @@
           <strong id="applyCount">0</strong> Strategien bereit zum Applyen
           &nbsp;<span class="excluded-note" id="excludedNote">(<span id="excludedCount">0</span> ausgeschlossen)</span>
         </div>
-        <!-- Avg / Median Toggle -->
+        <!-- Avg / Median / Asym Toggle -->
         <div class="mode-toggle">
-          <button class="mode-btn active" id="modeAvgBtn" onclick="setCapMode('avg')">Avg CPC</button>
-          <button class="mode-btn" id="modeMedianBtn" onclick="setCapMode('median')">Median CPC</button>
+          <button class="mode-btn active" id="modeAvgBtn"    onclick="setCapMode('avg')">Avg CPC</button>
+          <button class="mode-btn"        id="modeMedianBtn" onclick="setCapMode('median')">Median CPC</button>
+          <button class="mode-btn"        id="modeAsymBtn"   onclick="setCapMode('asym')">↑ Avg / ↓ Median</button>
         </div>
         <div class="mode-info-bar mode-info-avg" id="modeInfoBar"></div>
       </div>
@@ -414,7 +424,7 @@
               <tr>
                 <th style="width:36px" data-tip="Vom Apply ausschließen">Excl.</th>
                 <th>Strategie</th><th>Bucket</th>
-                <th>Cap Alt</th><th>Cap Avg</th><th>Cap Median</th>
+                <th>Cap Alt</th><th>Cap Avg</th><th>Cap Median</th><th>Cap Asym</th>
                 <th>Delta (aktiv)</th><th>CPC 14d/30d</th><th>Score</th><th>Flags</th><th>Schwere</th>
               </tr>
             </thead>
@@ -474,6 +484,7 @@
                 <th>Basis</th><th>Cap Alt</th>
                 <th data-tip="avgCPC ×1.10 — Standard">Cap Avg</th>
                 <th data-tip="Median 90d (Urlaubswochen bereinigt) ×1.10">Cap Median</th>
+                <th data-tip="Erhöhung=Avg, Senkung=Median">Cap Asym</th>
                 <th>Delta (aktiv)</th>
                 <th>IS Lost</th><th>Reason</th>
                 <th data-tip="Click Opportunity × Konfidenz">Score</th>
@@ -586,54 +597,66 @@ let capMode = 'avg';  // 'avg' | 'median'
 // ─── CAP MODE ────────────────────────────────────────────────────
 function setCapMode(mode) {
   capMode = mode;
-  document.getElementById('modeAvgBtn').classList.toggle('active', mode === 'avg');
-  document.getElementById('modeMedianBtn').classList.toggle('active', mode === 'median');
+  document.getElementById('modeAvgBtn').classList.toggle('active',           mode === 'avg');
+  document.getElementById('modeMedianBtn').classList.toggle('active',        mode === 'median');
+  document.getElementById('modeAsymBtn').classList.toggle('active',          mode === 'asym');
   document.getElementById('modeMedianBtn').classList.toggle('median-active', mode === 'median');
+  document.getElementById('modeAsymBtn').classList.toggle('asym-active',     mode === 'asym');
 
-  const infoBar = document.getElementById('modeInfoBar');
-  const medBanner = document.getElementById('medianBanner');
+  const infoBar    = document.getElementById('modeInfoBar');
+  const medBanner  = document.getElementById('medianBanner');
+  const asymBanner = document.getElementById('asymBanner');
+  medBanner.classList.remove('show');
+  asymBanner.classList.remove('show');
 
   if (mode === 'median') {
     infoBar.className = 'mode-info-bar mode-info-median';
     if (analysisData?.median_info) {
       const mi = analysisData.median_info;
-      infoBar.textContent =
-        `${mi.strategies_with_median} Strategien mit Median-Cap · ${mi.strategies_fallback} Fallback auf Avg · ${mi.lookback_days}d Lookback`;
-      infoBar.style.display = 'block';
+      infoBar.textContent = `${mi.strategies_with_median} mit Median-Cap · ${mi.strategies_fallback} Fallback · ${mi.lookback_days}d Lookback`;
     }
+    infoBar.style.display = 'block';
     medBanner.classList.add('show');
+  } else if (mode === 'asym') {
+    infoBar.style.cssText = 'display:block;background:rgba(34,197,94,0.1);color:var(--green);border:1px solid rgba(34,197,94,0.25);border-radius:20px;padding:3px 12px;font-size:11px';
+    if (analysisData?.median_info) {
+      const mi = analysisData.median_info;
+      infoBar.textContent = `↑ sofort auf Avg · ↓ nur wenn Median 90d darunter · ${mi.strategies_fallback} Fallback`;
+    }
+    asymBanner.classList.add('show');
+    if (analysisData?.summary) {
+      const s = analysisData.summary;
+      const net = s.asym_net_delta_eur ?? 0;
+      document.getElementById('asymBannerDetail').textContent =
+        `Erhöhungen: +${(s.asym_increases_eur??0).toFixed(2)}€ (${s.asym_increases_count??0}) · Senkungen: ${(s.asym_decreases_eur??0).toFixed(2)}€ (${s.asym_decreases_count??0}) · Netto: ${net>=0?'+':''}${net.toFixed(2)}€`;
+    }
   } else {
     infoBar.className = 'mode-info-bar mode-info-avg';
     infoBar.textContent = 'Standard: avgCPC ×1.10';
     infoBar.style.display = 'block';
-    medBanner.classList.remove('show');
   }
 
-  // Summary cards neu rendern mit richtigen Zahlen
   if (analysisData) updateSummaryForMode();
-  // Tabelle: aktive Caps hervorheben
   refreshCapHighlight();
 }
 
 function updateSummaryForMode() {
   const s = analysisData.summary;
-  const isMedian = capMode === 'median';
-  const inc  = isMedian ? s.median_increases_eur  : s.total_increases_eur;
-  const dec  = isMedian ? s.median_decreases_eur  : s.total_decreases_eur;
-  const net  = isMedian ? s.median_net_delta_eur  : s.net_delta_eur;
-  const incC = isMedian ? s.median_increases_count: s.increases_count;
-  const decC = isMedian ? s.median_decreases_count: s.decreases_count;
+  const inc  = capMode === 'median' ? s.median_increases_eur  : capMode === 'asym' ? (s.asym_increases_eur??0)  : s.total_increases_eur;
+  const dec  = capMode === 'median' ? s.median_decreases_eur  : capMode === 'asym' ? (s.asym_decreases_eur??0)  : s.total_decreases_eur;
+  const net  = capMode === 'median' ? s.median_net_delta_eur  : capMode === 'asym' ? (s.asym_net_delta_eur??0)  : s.net_delta_eur;
+  const incC = capMode === 'median' ? s.median_increases_count: capMode === 'asym' ? (s.asym_increases_count??0): s.increases_count;
+  const decC = capMode === 'median' ? s.median_decreases_count: capMode === 'asym' ? (s.asym_decreases_count??0): s.decreases_count;
 
-  document.getElementById('card-inc').textContent  = `+${inc.toFixed(2)}€`;
-  document.getElementById('card-dec').textContent  = `${dec.toFixed(2)}€`;
-  document.getElementById('card-net').textContent  = `${net >= 0 ? '+' : ''}${net.toFixed(2)}€`;
-  document.getElementById('card-net').className    = 'card-value ' + (net >= 0 ? 'positive' : 'negative');
+  document.getElementById('card-inc').textContent     = `+${inc.toFixed(2)}€`;
+  document.getElementById('card-dec').textContent     = `${dec.toFixed(2)}€`;
+  document.getElementById('card-net').textContent     = `${net >= 0 ? '+' : ''}${net.toFixed(2)}€`;
+  document.getElementById('card-net').className       = 'card-value ' + (net >= 0 ? 'positive' : 'negative');
   document.getElementById('card-inc-sub').textContent = `${incC} Strategien`;
   document.getElementById('card-dec-sub').textContent = `${decC} Strategien`;
 }
 
 function refreshCapHighlight() {
-  // Avg-Spalten und Median-Spalten in der Cap-Changes-Tabelle hervorheben
   document.querySelectorAll('.cap-avg-cell').forEach(el => {
     el.classList.toggle('cap-active',   capMode === 'avg');
     el.classList.toggle('cap-inactive', capMode !== 'avg');
@@ -642,17 +665,23 @@ function refreshCapHighlight() {
     el.classList.toggle('cap-active',   capMode === 'median');
     el.classList.toggle('cap-inactive', capMode !== 'median');
   });
+  document.querySelectorAll('.cap-asym-cell').forEach(el => {
+    el.classList.toggle('cap-active',   capMode === 'asym');
+    el.classList.toggle('cap-inactive', capMode !== 'asym');
+  });
   // Delta-Spalten updaten
   document.querySelectorAll('[data-delta-avg]').forEach(el => {
-    const avgD    = el.dataset.deltaAvg;
-    const medD    = el.dataset.deltaMedian;
-    const activeD = capMode === 'median' ? medD : avgD;
-    const val     = parseFloat(activeD);
-    const cls     = val > 0 ? 'delta-up' : val < 0 ? 'delta-down' : 'delta-zero';
-    const txt     = val > 0 ? `+${activeD}€` : val < 0 ? `${activeD}€` : '±0';
-    el.innerHTML  = `<span class="delta ${cls}">${txt}</span>`;
+    const avgD  = el.dataset.deltaAvg;
+    const medD  = el.dataset.deltaMedian;
+    const asymD = el.dataset.deltaAsym;
+    const activeD = capMode === 'median' ? medD : capMode === 'asym' ? asymD : avgD;
+    const val   = parseFloat(activeD);
+    const cls   = val > 0 ? 'delta-up' : val < 0 ? 'delta-down' : 'delta-zero';
+    const txt   = val > 0 ? `+${activeD}€` : val < 0 ? `${activeD}€` : '±0';
+    el.innerHTML = `<span class="delta ${cls}">${txt}</span>`;
   });
 }
+
 
 // ─── OUTLIER DETECTION ───────────────────────────────────────────
 function iqrOutliers(values) {
@@ -844,9 +873,13 @@ function renderDashboard(data) {
         const capAlt    = s.current_cap_micros   ? (s.current_cap_micros/1e6).toFixed(2)   : '—';
         const capAvg    = s.new_cap_micros        ? (s.new_cap_micros/1e6).toFixed(2)       : '—';
         const capMed    = s.new_cap_median_micros ? (s.new_cap_median_micros/1e6).toFixed(2): capAvg;
+        const capAsym   = s.new_cap_asym_micros   ? (s.new_cap_asym_micros/1e6).toFixed(2) : capAvg;
         const fbBadge   = s.median_fallback       ? '<span class="fallback-badge">fb</span>' : '';
-        const dAvg  = s.cap_delta_micros        ? (s.cap_delta_micros/1e6).toFixed(2)       : '0';
-        const dMed  = s.cap_delta_median_micros ? (s.cap_delta_median_micros/1e6).toFixed(2): dAvg;
+        const asymDir   = s.asym_direction || '';
+        const asymColor = asymDir.startsWith('up') ? 'var(--green)' : asymDir.startsWith('down') ? 'var(--purple)' : 'var(--muted)';
+        const dAvg  = s.cap_delta_micros        ? (s.cap_delta_micros/1e6).toFixed(2)        : '0';
+        const dMed  = s.cap_delta_median_micros ? (s.cap_delta_median_micros/1e6).toFixed(2) : dAvg;
+        const dAsym = s.cap_delta_asym_micros   ? (s.cap_delta_asym_micros/1e6).toFixed(2)  : dAvg;
         const rankLost  = s.rank_lost_is_30d > 0.05
           ? `<span style="color:${s.rank_lost_is_30d>0.5?'#ef4444':s.rank_lost_is_30d>0.3?'#f59e0b':'#8892a4'}">${(s.rank_lost_is_30d*100).toFixed(1)}%↓</span>` : '';
         const budLost   = s.budget_lost_is_30d > 0.01
@@ -861,8 +894,9 @@ function renderDashboard(data) {
           <td class="mono">${capAlt}€</td>
           <td class="mono cap-avg-cell ${capMode==='avg'?'cap-active':'cap-inactive'}">${capAvg}€</td>
           <td class="mono cap-median-cell ${capMode==='median'?'cap-active':'cap-inactive'}">${capMed}€${fbBadge}</td>
-          <td data-delta-avg="${dAvg}" data-delta-median="${dMed}">
-            ${(() => { const v=parseFloat(capMode==='median'?dMed:dAvg); const c=v>0?'delta-up':v<0?'delta-down':'delta-zero'; const t=v>0?`+${capMode==='median'?dMed:dAvg}€`:v<0?`${capMode==='median'?dMed:dAvg}€`:'±0'; return `<span class="delta ${c}">${t}</span>`; })()}
+          <td class="mono cap-asym-cell ${capMode==='asym'?'cap-active':'cap-inactive'}" style="color:${asymColor}">${capAsym}€<span style="font-size:9px;margin-left:3px;opacity:0.7">${asymDir?asymDir.split('(')[0]:''}</span></td>
+          <td data-delta-avg="${dAvg}" data-delta-median="${dMed}" data-delta-asym="${dAsym}">
+            ${(() => { const aD=capMode==='median'?dMed:capMode==='asym'?dAsym:dAvg; const v=parseFloat(aD); const c=v>0?'delta-up':v<0?'delta-down':'delta-zero'; const t=v>0?`+${aD}€`:v<0?`${aD}€`:'±0'; return `<span class="delta ${c}">${t}</span>`; })()}
           </td>
           <td>${[rankLost,budLost].filter(Boolean).join(' ')||'—'}</td>
           <td style="color:var(--muted);font-size:12px;max-width:180px">${s.reason||''}</td>
@@ -918,18 +952,25 @@ function renderOutlierScorecard(strategies) {
 
   tbody.innerHTML = outliers.map(s => {
     const rid    = s.resource_name || `idx_${s._i}`;
-    const capAlt = s.current_cap_micros   ? (s.current_cap_micros/1e6).toFixed(2)   + '€' : '—';
-    const capAvg = s.new_cap_micros       ? (s.new_cap_micros/1e6).toFixed(2)       + '€' : '—';
-    const capMed = s.new_cap_median_micros? (s.new_cap_median_micros/1e6).toFixed(2)+ '€' : capAvg;
-    const dAvg   = s.cap_delta_micros        ? (s.cap_delta_micros/1e6).toFixed(2)       : '0';
-    const dMed   = s.cap_delta_median_micros ? (s.cap_delta_median_micros/1e6).toFixed(2): dAvg;
-    const activeD= parseFloat(capMode==='median'?dMed:dAvg);
+    const capAlt  = s.current_cap_micros    ? (s.current_cap_micros/1e6).toFixed(2)    + '€' : '—';
+    const capAvg  = s.new_cap_micros        ? (s.new_cap_micros/1e6).toFixed(2)        + '€' : '—';
+    const capMed  = s.new_cap_median_micros ? (s.new_cap_median_micros/1e6).toFixed(2) + '€' : capAvg;
+    const capAsym = s.new_cap_asym_micros   ? (s.new_cap_asym_micros/1e6).toFixed(2)   + '€' : capAvg;
+    const asymDir = s.asym_direction || '';
+    const asymColor = asymDir.startsWith('up') ? 'var(--green)' : asymDir.startsWith('down') ? 'var(--purple)' : 'var(--muted)';
+    const dAvg   = s.cap_delta_micros        ? (s.cap_delta_micros/1e6).toFixed(2)        : '0';
+    const dMed   = s.cap_delta_median_micros ? (s.cap_delta_median_micros/1e6).toFixed(2) : dAvg;
+    const dAsym  = s.cap_delta_asym_micros   ? (s.cap_delta_asym_micros/1e6).toFixed(2)  : dAvg;
+    const aD     = capMode==='median' ? dMed : capMode==='asym' ? dAsym : dAvg;
+    const activeD= parseFloat(aD);
     const dc     = activeD>0?'delta-up':activeD<0?'delta-down':'delta-zero';
-    const dt     = activeD>0?`+${capMode==='median'?dMed:dAvg}€`:activeD<0?`${capMode==='median'?dMed:dAvg}€`:'±0';
+    const dt     = activeD>0?`+${aD}€`:activeD<0?`${aD}€`:'±0';
     const cpc14  = ((s.avg_cpc_14d_micros||0)/1e6).toFixed(2);
     const cpc30  = ((s.avg_cpc_30d_micros||0)/1e6).toFixed(2);
     const sc     = s._severity==='high' ? 'outlier-severity-high' : 'outlier-severity-med';
-    const sv     = s._severity==='high' ? `<span style="color:var(--red);font-weight:700;font-size:11px">🔴 HOCH</span>` : `<span style="color:var(--yellow);font-weight:700;font-size:11px">🟡 MITTEL</span>`;
+    const sv     = s._severity==='high'
+      ? `<span style="color:var(--red);font-weight:700;font-size:11px">🔴 HOCH</span>`
+      : `<span style="color:var(--yellow);font-weight:700;font-size:11px">🟡 MITTEL</span>`;
     const flags  = s._flags.map(f => {
       const cls = {delta:'flag-delta',cpc:'flag-cpc',score:'flag-score',is:'flag-is',lowcpc:'flag-lowcpc'}[f.type]||'';
       return `<span class="outlier-flag ${cls}">${f.label}</span>`;
@@ -941,6 +982,7 @@ function renderOutlierScorecard(strategies) {
       <td class="mono">${capAlt}</td>
       <td class="mono cap-avg-cell ${capMode==='avg'?'cap-active':'cap-inactive'}">${capAvg}</td>
       <td class="mono cap-median-cell ${capMode==='median'?'cap-active':'cap-inactive'}">${capMed}${s.median_fallback?'<span class="fallback-badge">fb</span>':''}</td>
+      <td class="mono cap-asym-cell ${capMode==='asym'?'cap-active':'cap-inactive'}" style="color:${asymColor}">${capAsym}</td>
       <td><span class="delta ${dc}">${dt}</span></td>
       <td class="mono">${cpc14} / ${cpc30}</td>
       <td class="mono" style="color:${s.score>20?'#ef4444':s.score>10?'#f59e0b':'#8892a4'}">${s.score?s.score.toFixed(1):'—'}</td>
@@ -1012,7 +1054,7 @@ async function applyChanges() {
 
   if (net === 0) { alert('Keine Strategien zum Applyen'); return; }
 
-  const modeLabel = capMode === 'median' ? 'Median-CPC' : 'Avg-CPC';
+  const modeLabel = capMode === 'median' ? 'Median-CPC' : capMode === 'asym' ? '↑Avg/↓Median' : 'Avg-CPC';
   const confirmMsg = `${net} Cap${net!==1?'s':''} applyen (${modeLabel})?`
     + (excl > 0 ? `\n(${excl} Ausreißer ausgeschlossen)` : '')
     + (includeWarn ? '\n+ WARN-Fälle' : '');
@@ -1143,7 +1185,7 @@ function openSnapshotModal() {
   document.getElementById('snapshotMsg').style.display = 'none';
   document.getElementById('snapshotLabel').value = '';
   document.getElementById('snapshotModeLabel').textContent =
-    capMode === 'median' ? 'Median CPC' : 'Avg CPC';
+    capMode === 'median' ? 'Median CPC' : capMode === 'asym' ? '↑ Avg / ↓ Median' : 'Avg CPC';
 }
 
 function closeSnapshotModal() {
