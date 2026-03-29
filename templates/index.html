@@ -395,6 +395,26 @@
       <ul id="resultList"></ul>
     </div>
 
+    <!-- Saisonale Modus-Empfehlung -->
+    <div id="seasonRec" style="
+      border-radius: 10px; padding: 12px 18px; margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+      font-size: 12px;
+    ">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="seasonIcon" style="font-size:18px"></span>
+        <div>
+          <div id="seasonTitle" style="font-weight:700;margin-bottom:2px"></div>
+          <div id="seasonDetail" style="opacity:0.75"></div>
+        </div>
+      </div>
+      <div id="seasonModeHint" style="
+        font-size:11px;font-weight:700;padding:4px 12px;
+        border-radius:20px;white-space:nowrap;
+      "></div>
+    </div>
+
     <!-- Outlier Scorecard -->
     <div class="scorecard" id="outlierScorecard">
       <div class="scorecard-header" onclick="toggleScorecard()">
@@ -592,7 +612,72 @@
 <script>
 let analysisData   = null;
 let excludedStrategies = new Set();
-let capMode = 'avg';  // 'avg' | 'median'
+let capMode = 'avg';  // 'avg' | 'median' | 'asym'
+
+// ─── SEASONAL MODE RECOMMENDATION ────────────────────────────────
+// Basierend auf echten Kampagnendaten NOVOTERGUM 2025 (nur Klicks maximieren):
+// Jun–Okt: CPC +13–15% über Jahresmedian → Avg
+// Nov–Mai: CPC stabil oder günstig → Asym
+const SEASON_CONFIG = [
+  {
+    months:   [6, 7, 8, 9, 10],
+    label:    'Recruiting-Peak',
+    detail:   'Jun–Okt: CPC historisch +13–15% über Jahresmedian (Ø 4.08–4.33€). Avg reagiert schneller als der 90d-Median.',
+    rec:      'avg',
+    recLabel: 'Avg CPC empfohlen',
+    icon:     '📈',
+    bg:       'rgba(59,130,246,0.08)',
+    border:   'rgba(59,130,246,0.25)',
+    color:    'var(--blue)',
+  },
+  {
+    months:   [11, 12, 1, 2, 3, 4, 5],
+    label:    'Ruhige Phase',
+    detail:   'Nov–Mai: CPC stabil oder sinkend (Jan günstigster Monat, -13%). Asym senkt überteuerte Caps via Median.',
+    rec:      'asym',
+    recLabel: '↑ Avg / ↓ Median empfohlen',
+    icon:     '⚡',
+    bg:       'rgba(34,197,94,0.07)',
+    border:   'rgba(34,197,94,0.25)',
+    color:    'var(--green)',
+  },
+];
+
+function renderSeasonRec() {
+  const month = new Date().getMonth() + 1;
+  const cfg   = SEASON_CONFIG.find(s => s.months.includes(month));
+  if (!cfg) return;
+
+  const box = document.getElementById('seasonRec');
+  const isActive = capMode === cfg.rec;
+
+  box.style.background = cfg.bg;
+  box.style.border     = `1px solid ${cfg.border}`;
+
+  document.getElementById('seasonIcon').textContent   = cfg.icon;
+  document.getElementById('seasonTitle').textContent  = cfg.label + ' — ' + cfg.recLabel;
+  document.getElementById('seasonTitle').style.color  = cfg.color;
+  document.getElementById('seasonDetail').textContent = cfg.detail;
+  document.getElementById('seasonDetail').style.color = cfg.color;
+
+  const hint = document.getElementById('seasonModeHint');
+  if (isActive) {
+    hint.textContent      = '✅ Aktueller Modus passt';
+    hint.style.background = 'rgba(34,197,94,0.15)';
+    hint.style.color      = 'var(--green)';
+    hint.style.border     = '1px solid rgba(34,197,94,0.3)';
+    hint.style.cursor     = 'default';
+    hint.onclick          = null;
+  } else {
+    const modeName = cfg.rec === 'avg' ? 'Avg CPC' : '↑ Avg / ↓ Median';
+    hint.textContent      = `⚠️ Zu ${modeName} wechseln`;
+    hint.style.background = 'rgba(245,158,11,0.12)';
+    hint.style.color      = 'var(--yellow)';
+    hint.style.border     = '1px solid rgba(245,158,11,0.3)';
+    hint.style.cursor     = 'pointer';
+    hint.onclick          = () => setCapMode(cfg.rec);
+  }
+}
 
 // ─── CAP MODE ────────────────────────────────────────────────────
 function setCapMode(mode) {
@@ -638,6 +723,7 @@ function setCapMode(mode) {
 
   if (analysisData) updateSummaryForMode();
   refreshCapHighlight();
+  renderSeasonRec();
 }
 
 function updateSummaryForMode() {
@@ -928,8 +1014,9 @@ function renderDashboard(data) {
 
   document.getElementById('dashboard').style.display = 'block';
 
-  // Mode info bar
+  // Mode info bar + seasonal recommendation
   setCapMode(capMode);
+  renderSeasonRec();
 }
 
 // ─── OUTLIER SCORECARD ───────────────────────────────────────────
