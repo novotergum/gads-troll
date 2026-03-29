@@ -1,0 +1,11 @@
+{
+  "year": 2026,
+  "periods": [
+    {"name": "Ostern",        "start": "2026-04-02", "end": "2026-04-06"},
+    {"name": "Himmelfahrt",   "start": "2026-05-14", "end": "2026-05-14"},
+    {"name": "Pfingsten",     "start": "2026-05-25", "end": "2026-05-25"},
+    {"name": "Sommerferien",  "start": "2026-06-29", "end": "2026-08-11"},
+    {"name": "Herbstferien",  "start": "2026-10-05", "end": "2026-10-17"},
+    {"name": "Weihnachten",   "start": "2026-12-23", "end": "2027-01-03"}
+  ]
+}
