@@ -8,69 +8,43 @@
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600;700&display=swap');
 
   :root {
-    --bg: #0f1117;
+    --bg:      #0f1117;
     --surface: #1a1d27;
-    --surface2: #222636;
-    --surface3: #2a2e42;
-    --border: #2d3148;
-    --text: #e2e8f0;
-    --muted: #8892a4;
-    --green: #22c55e;
-    --red: #ef4444;
-    --yellow: #f59e0b;
-    --blue: #3b82f6;
-    --purple: #8b5cf6;
-    --orange: #f97316;
-    --pink: #ec4899;
-    --cyan: #06b6d4;
+    --surface2:#222636;
+    --surface3:#2a2e42;
+    --border:  #2d3148;
+    --text:    #e2e8f0;
+    --muted:   #8892a4;
+    --green:   #22c55e;
+    --red:     #ef4444;
+    --yellow:  #f59e0b;
+    --blue:    #3b82f6;
+    --purple:  #8b5cf6;
+    --orange:  #f97316;
+    --cyan:    #06b6d4;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', system-ui, sans-serif;
-    font-size: 14px;
-  }
-
+  /* ── Header ── */
   .header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 14px 24px;
-    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
     position: sticky; top: 0; z-index: 100;
   }
-
-  .header h1 {
-    font-size: 15px; font-weight: 700;
-    display: flex; align-items: center; gap: 10px;
-  }
-
-  .logo {
-    width: 26px; height: 26px;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    border-radius: 7px;
-  }
-
+  .header h1 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .logo { width: 26px; height: 26px; background: linear-gradient(135deg,#3b82f6,#8b5cf6); border-radius: 7px; }
   .controls { display: flex; align-items: center; gap: 10px; }
-
   .customer-input {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 8px 12px; border-radius: 8px;
-    font-size: 13px; width: 160px;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 12px; border-radius: 8px; font-size: 13px; width: 160px;
     font-family: 'JetBrains Mono', monospace;
   }
   .customer-input:focus { outline: none; border-color: var(--blue); }
-
   .btn {
     padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
-    font-size: 13px; font-weight: 600;
-    transition: all 0.15s;
-    display: flex; align-items: center; gap: 6px;
-    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600; transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px; font-family: 'DM Sans', sans-serif;
   }
   .btn-primary { background: var(--blue); color: white; }
   .btn-primary:hover { background: #2563eb; }
@@ -79,213 +53,87 @@
   .btn-success:hover { background: #16a34a; }
   .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .main { padding: 24px; max-width: 1700px; margin: 0 auto; }
-
-  .loading {
-    display: none; text-align: center; padding: 80px; color: var(--muted);
-  }
+  /* ── Main ── */
+  .main { padding: 24px; max-width: 1800px; margin: 0 auto; }
+  .loading { display: none; text-align: center; padding: 80px; color: var(--muted); }
   .spinner {
-    width: 38px; height: 38px;
-    border: 3px solid var(--border); border-top-color: var(--blue);
-    border-radius: 50%; animation: spin 0.8s linear infinite;
-    margin: 0 auto 16px;
+    width: 38px; height: 38px; border: 3px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   .error-box {
-    background: #2d1515; border: 1px solid #7f1d1d;
-    border-radius: 10px; padding: 16px; margin-bottom: 20px;
-    color: #fca5a5; display: none;
+    background: #2d1515; border: 1px solid #7f1d1d; border-radius: 10px;
+    padding: 16px; margin-bottom: 20px; color: #fca5a5; display: none;
   }
 
-  /* Summary Cards */
-  .summary-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 14px; margin-bottom: 22px;
-  }
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 16px;
-  }
-  .card-label {
-    font-size: 10px; color: var(--muted); text-transform: uppercase;
-    letter-spacing: 0.6px; margin-bottom: 8px; font-weight: 600;
-  }
+  /* ── Summary Cards ── */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .card-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; font-weight: 600; }
   .card-value { font-size: 26px; font-weight: 700; }
-  .card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
-  .positive { color: var(--green); }
-  .negative { color: var(--red); }
-  .neutral { color: var(--blue); }
+  .card-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .positive   { color: var(--green); }
+  .negative   { color: var(--red); }
+  .neutral    { color: var(--blue); }
   .warn-color { color: var(--yellow); }
 
-  /* Apply Bar */
+  /* ── Mode Toggle ── */
+  .mode-toggle {
+    display: inline-flex; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+  .mode-btn {
+    padding: 7px 16px; font-size: 12px; font-weight: 700; cursor: pointer;
+    border: none; background: none; color: var(--muted); transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .mode-btn.active { background: var(--blue); color: white; }
+  .mode-btn.active.median-active { background: var(--purple); }
+
+  /* ── Apply Bar ── */
   .apply-bar {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 14px 20px;
-    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 22px; gap: 16px; flex-wrap: wrap;
   }
+  .apply-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
   .apply-info { font-size: 13px; color: var(--muted); }
   .apply-info strong { color: var(--text); }
-  .apply-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .excluded-note {
     font-size: 11px; color: var(--red); display: none;
     background: rgba(239,68,68,0.1); padding: 3px 10px;
     border-radius: 20px; border: 1px solid rgba(239,68,68,0.25);
   }
+  .apply-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  label.checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
 
-  label.checkbox-label {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: var(--muted); cursor: pointer;
+  /* ── Mode Info Bar ── */
+  .mode-info-bar {
+    font-size: 11px; padding: 4px 12px; border-radius: 20px; display: none;
   }
+  .mode-info-avg    { background: rgba(59,130,246,0.1); color: var(--blue); border: 1px solid rgba(59,130,246,0.2); }
+  .mode-info-median { background: rgba(139,92,246,0.1); color: var(--purple); border: 1px solid rgba(139,92,246,0.2); }
 
-  /* ─── OUTLIER SCORECARD ─── */
-  .scorecard {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; margin-bottom: 22px; overflow: hidden;
+  /* ── Holiday Banner ── */
+  .holiday-banner {
+    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 10px; padding: 10px 16px; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
-  .scorecard-header {
-    padding: 14px 20px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-    cursor: pointer; user-select: none;
-  }
-  .scorecard-header:hover { background: var(--surface2); }
-  .scorecard-title {
-    font-size: 13px; font-weight: 700; color: var(--text);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .sc-chevron { font-size: 10px; transition: transform 0.2s; color: var(--muted); }
-  .sc-chevron.open { transform: rotate(180deg); }
-  .scorecard-body { padding: 20px; display: none; }
-  .scorecard-body.open { display: block; }
+  .holiday-banner-text   { font-size: 12px; color: var(--yellow); }
+  .holiday-banner-detail { font-size: 11px; color: var(--muted); }
 
-  /* Stat row */
-  .sc-stat-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px; margin-bottom: 20px;
+  /* ── Median Info Banner ── */
+  .median-banner {
+    background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.25);
+    border-radius: 10px; padding: 10px 16px; margin-bottom: 16px;
+    display: none; align-items: center; gap: 16px; flex-wrap: wrap;
   }
-  .sc-stat {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px;
-  }
-  .sc-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 600; }
-  .sc-stat-val { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-  .sc-stat-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .median-banner.show { display: flex; }
+  .median-banner-text { font-size: 12px; color: var(--purple); }
+  .median-banner-detail { font-size: 11px; color: var(--muted); }
 
-  /* Outlier list */
-  .outlier-legend {
-    display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap;
-  }
-  .outlier-legend-item {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 11px; color: var(--muted);
-  }
-  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
-
-  .outlier-table-wrap {
-    border-radius: 10px; border: 1px solid var(--border); overflow-x: auto;
-  }
-  .outlier-table { width: 100%; border-collapse: collapse; }
-  .outlier-table th {
-    background: var(--surface3); padding: 9px 13px;
-    text-align: left; font-size: 10px; font-weight: 700;
-    color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px;
-    white-space: nowrap;
-  }
-  .outlier-table td {
-    padding: 9px 13px; border-top: 1px solid var(--border);
-    vertical-align: middle;
-  }
-  .outlier-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-  .outlier-flag {
-    display: inline-flex; align-items: center; gap: 3px;
-    padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;
-    margin: 2px;
-  }
-  .flag-cpc { background: rgba(249,115,22,0.15); color: var(--orange); }
-  .flag-delta { background: rgba(239,68,68,0.15); color: var(--red); }
-  .flag-score { background: rgba(139,92,246,0.15); color: var(--purple); }
-  .flag-is { background: rgba(245,158,11,0.15); color: var(--yellow); }
-  .flag-lowcpc { background: rgba(6,182,212,0.15); color: var(--cyan); }
-
-  .outlier-row td { background: rgba(239,68,68,0.03); }
-  .outlier-severity-high { border-left: 3px solid var(--red) !important; }
-  .outlier-severity-med  { border-left: 3px solid var(--yellow) !important; }
-
-  /* Exclude checkbox */
-  .exclude-check {
-    width: 16px; height: 16px; cursor: pointer;
-    accent-color: var(--red);
-  }
-  .excluded-row td { opacity: 0.45; text-decoration: line-through; }
-  .excluded-row td:first-child { opacity: 1; text-decoration: none; }
-
-  /* Sections */
-  .section { margin-bottom: 26px; }
-  .section-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 10px;
-  }
-  .section-title {
-    font-size: 12px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.5px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .badge {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 20px; padding: 2px 9px; font-size: 11px; color: var(--muted);
-  }
-  .badge-warn { border-color: rgba(239,68,68,0.4); color: var(--red); background: rgba(239,68,68,0.08); }
-
-  /* Tables */
-  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
-  table { width: 100%; border-collapse: collapse; }
-  th {
-    background: var(--surface2); padding: 10px 13px;
-    text-align: left; font-size: 10px; font-weight: 700;
-    color: var(--muted); text-transform: uppercase;
-    letter-spacing: 0.4px; white-space: nowrap;
-  }
-  td { padding: 10px 13px; border-top: 1px solid var(--border); vertical-align: middle; }
-  tr:hover td { background: rgba(255,255,255,0.02); }
-  .name-cell { font-weight: 600; max-width: 200px; }
-  .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-
-  .delta {
-    display: inline-flex; align-items: center; gap: 3px;
-    padding: 2px 7px; border-radius: 20px; font-size: 12px; font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .delta-up   { background: rgba(34,197,94,0.12);  color: var(--green); }
-  .delta-down { background: rgba(239,68,68,0.12);   color: var(--red); }
-  .delta-zero { background: var(--surface2);         color: var(--muted); }
-
-  .is-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 110px; }
-  .is-bar-bg { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .is-bar-fill { height: 100%; border-radius: 3px; }
-  .is-val { font-size: 12px; font-weight: 700; white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
-
-  /* Bucket styles */
-  .bucket-NEAR30_READY td:first-child  { border-left: 3px solid var(--purple); }
-  .bucket-READY          td:first-child { border-left: 3px solid var(--green); }
-  .bucket-LOWVOL_READY   td:first-child { border-left: 3px solid var(--blue); }
-  .bucket-LOWVOL_DECREASE td:first-child { border-left: 3px solid var(--orange); }
-  .bucket-WARN           td:first-child { border-left: 3px solid var(--yellow); }
-  .bucket-SKIP           td:first-child { border-left: 3px solid var(--border); }
-
-  .bucket-pill {
-    display: inline-block; padding: 2px 8px; border-radius: 20px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
-  }
-  .pill-NEAR30_READY  { background: rgba(139,92,246,0.15); color: var(--purple); }
-  .pill-READY         { background: rgba(34,197,94,0.15);  color: var(--green); }
-  .pill-LOWVOL_READY  { background: rgba(59,130,246,0.15); color: var(--blue); }
-  .pill-LOWVOL_DECREASE { background: rgba(249,115,22,0.15); color: var(--orange); }
-  .pill-WARN          { background: rgba(245,158,11,0.15); color: var(--yellow); }
-  .pill-SKIP          { background: var(--surface2); color: var(--muted); }
-
-  /* Result */
+  /* ── Result Box ── */
   .result-box {
     background: #0f2d1a; border: 1px solid #166534;
     border-radius: 10px; padding: 16px; margin-top: 16px; display: none;
@@ -294,115 +142,137 @@
   .result-box ul { list-style: none; font-size: 12px; color: #86efac; }
   .result-box ul li { padding: 2px 0; font-family: 'JetBrains Mono', monospace; }
 
+  /* ── Outlier Scorecard ── */
+  .scorecard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 22px; overflow: hidden; }
+  .scorecard-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;
+  }
+  .scorecard-header:hover { background: var(--surface2); }
+  .scorecard-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .sc-chevron { font-size: 10px; transition: transform 0.2s; color: var(--muted); }
+  .sc-chevron.open { transform: rotate(180deg); }
+  .scorecard-body { padding: 20px; display: none; }
+  .scorecard-body.open { display: block; }
+  .sc-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 12px; margin-bottom: 20px; }
+  .sc-stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .sc-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 600; }
+  .sc-stat-val   { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .sc-stat-sub   { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .outlier-legend { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .outlier-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .outlier-table-wrap { border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; }
+  .outlier-table { width: 100%; border-collapse: collapse; }
+  .outlier-table th {
+    background: var(--surface3); padding: 9px 13px; text-align: left;
+    font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap;
+  }
+  .outlier-table td { padding: 9px 13px; border-top: 1px solid var(--border); vertical-align: middle; }
+  .outlier-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .outlier-flag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; margin: 2px; }
+  .flag-cpc    { background: rgba(249,115,22,0.15);  color: var(--orange); }
+  .flag-delta  { background: rgba(239,68,68,0.15);   color: var(--red); }
+  .flag-score  { background: rgba(139,92,246,0.15);  color: var(--purple); }
+  .flag-is     { background: rgba(245,158,11,0.15);  color: var(--yellow); }
+  .flag-lowcpc { background: rgba(6,182,212,0.15);   color: var(--cyan); }
+  .outlier-severity-high { border-left: 3px solid var(--red)    !important; }
+  .outlier-severity-med  { border-left: 3px solid var(--yellow) !important; }
+  .outlier-row td { background: rgba(239,68,68,0.03); }
+  .exclude-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--red); }
+  .excluded-row td { opacity: 0.45; text-decoration: line-through; }
+  .excluded-row td:first-child { opacity: 1; text-decoration: none; }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 26px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .section-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+  .badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 9px; font-size: 11px; color: var(--muted); }
+  .badge-warn { border-color: rgba(239,68,68,0.4); color: var(--red); background: rgba(239,68,68,0.08); }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--surface2); padding: 10px 13px; text-align: left;
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap;
+  }
+  td { padding: 10px 13px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .name-cell { font-weight: 600; max-width: 200px; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .delta { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 20px; font-size: 12px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .delta-up   { background: rgba(34,197,94,0.12);  color: var(--green); }
+  .delta-down { background: rgba(239,68,68,0.12);  color: var(--red); }
+  .delta-zero { background: var(--surface2);       color: var(--muted); }
+
+  /* Median cap highlight */
+  .cap-median-cell { color: var(--purple); }
+  .cap-avg-cell    { color: var(--blue); }
+  .cap-active { font-weight: 700; }
+  .cap-inactive { opacity: 0.45; font-size: 11px; }
+  .fallback-badge { font-size: 9px; color: var(--muted); background: var(--surface2); border-radius: 3px; padding: 1px 4px; margin-left: 3px; }
+
+  /* Bucket strips */
+  .bucket-NEAR30_READY   td:first-child { border-left: 3px solid var(--purple); }
+  .bucket-READY          td:first-child { border-left: 3px solid var(--green); }
+  .bucket-LOWVOL_READY   td:first-child { border-left: 3px solid var(--blue); }
+  .bucket-LOWVOL_DECREASE td:first-child { border-left: 3px solid var(--orange); }
+  .bucket-WARN           td:first-child { border-left: 3px solid var(--yellow); }
+  .bucket-SKIP           td:first-child { border-left: 3px solid var(--border); }
+  .bucket-pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 0.3px; }
+  .pill-NEAR30_READY   { background: rgba(139,92,246,0.15); color: var(--purple); }
+  .pill-READY          { background: rgba(34,197,94,0.15);  color: var(--green); }
+  .pill-LOWVOL_READY   { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .pill-LOWVOL_DECREASE{ background: rgba(249,115,22,0.15); color: var(--orange); }
+  .pill-WARN           { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .pill-SKIP           { background: var(--surface2);       color: var(--muted); }
+
+  /* ── Holiday Modal ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 580px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .modal-title { font-size: 15px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; }
+  .modal-close:hover { color: var(--text); }
+  .holiday-row { display: grid; grid-template-columns: 1fr 140px 140px 34px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .holiday-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 7px; font-size: 13px; font-family: inherit; width: 100%; }
+  .holiday-input:focus { outline: none; border-color: var(--blue); }
+  .holiday-input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+  .btn-del { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: var(--red); border-radius: 7px; padding: 7px 10px; cursor: pointer; font-size: 13px; line-height: 1; }
+  .btn-del:hover { background: rgba(239,68,68,0.2); }
+  .btn-add { background: var(--surface2); border: 1px dashed var(--border); border-radius: 8px; padding: 10px; width: 100%; color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit; margin-top: 4px; }
+  .btn-add:hover { border-color: var(--blue); color: var(--blue); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .save-msg { margin-top: 12px; font-size: 12px; text-align: center; display: none; }
+  .col-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; padding-bottom: 4px; }
+
+  /* ── Misc ── */
   .collapse-toggle { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; }
   .collapse-toggle::before { content: '▼'; font-size: 9px; transition: transform 0.2s; }
   .collapse-toggle.collapsed::before { transform: rotate(-90deg); }
-  .collapsible { transition: all 0.2s; }
-
   .empty-row td { text-align: center; color: var(--muted); padding: 24px; font-style: italic; }
   .placeholder { text-align: center; padding: 80px 24px; color: var(--muted); }
   .placeholder-icon { font-size: 48px; margin-bottom: 16px; }
   .placeholder h2 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
-
   [data-tip] { position: relative; cursor: help; }
   [data-tip]:hover::after {
-    content: attr(data-tip);
-    position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
-    background: #1e2330; border: 1px solid var(--border);
-    padding: 6px 10px; border-radius: 6px;
-    font-size: 11px; white-space: nowrap; color: var(--text); z-index: 999;
-  }
-
-  /* ── Holiday Banner ── */
-  .holiday-banner {
-    background: rgba(245,158,11,0.08);
-    border: 1px solid rgba(245,158,11,0.3);
-    border-radius: 10px; padding: 10px 16px;
-    margin-bottom: 16px;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; flex-wrap: wrap;
-  }
-  .holiday-banner-text { font-size: 12px; color: var(--yellow); }
-  .holiday-banner-detail { font-size: 11px; color: var(--muted); }
-
-  /* ── Holiday Modal ── */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.65); z-index: 200;
-    align-items: center; justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal-box {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; width: 580px; max-width: 95vw;
-    max-height: 90vh; overflow-y: auto; padding: 24px;
-  }
-  .modal-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 18px;
-  }
-  .modal-title { font-size: 15px; font-weight: 700; }
-  .modal-close {
-    background: none; border: none; color: var(--muted);
-    font-size: 20px; cursor: pointer; line-height: 1;
-  }
-  .modal-close:hover { color: var(--text); }
-  .holiday-row {
-    display: grid;
-    grid-template-columns: 1fr 140px 140px 34px;
-    gap: 8px; align-items: center;
-    margin-bottom: 8px;
-  }
-  .holiday-input {
-    background: var(--surface2); border: 1px solid var(--border);
-    color: var(--text); padding: 7px 10px; border-radius: 7px;
-    font-size: 13px; font-family: inherit; width: 100%;
-  }
-  .holiday-input:focus { outline: none; border-color: var(--blue); }
-  .holiday-input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.6);
-  }
-  .btn-del {
-    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
-    color: var(--red); border-radius: 7px; padding: 7px 10px;
-    cursor: pointer; font-size: 13px; line-height: 1;
-  }
-  .btn-del:hover { background: rgba(239,68,68,0.2); }
-  .btn-add {
-    background: var(--surface2); border: 1px dashed var(--border);
-    border-radius: 8px; padding: 10px; width: 100%;
-    color: var(--muted); font-size: 13px; cursor: pointer;
-    font-family: inherit; margin-top: 4px;
-  }
-  .btn-add:hover { border-color: var(--blue); color: var(--blue); }
-  .modal-footer {
-    display: flex; justify-content: flex-end; gap: 10px;
-    margin-top: 20px;
-  }
-  .save-msg {
-    margin-top: 12px; font-size: 12px;
-    text-align: center; display: none;
-  }
-  .col-label {
-    font-size: 10px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.4px;
-    padding-bottom: 4px;
+    content: attr(data-tip); position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+    background: #1e2330; border: 1px solid var(--border); padding: 6px 10px;
+    border-radius: 6px; font-size: 11px; white-space: nowrap; color: var(--text); z-index: 999;
   }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>
-    <div class="logo"></div>
-    Bidding Health Dashboard
-  </h1>
+  <h1><div class="logo"></div>Bidding Health Dashboard</h1>
   <div class="controls">
-    <input class="customer-input" id="customerId" placeholder="Customer ID" value="">
+    <input class="customer-input" id="customerId" placeholder="Customer ID">
     <button class="btn" style="background:var(--surface2);color:var(--muted);padding:8px 12px"
-            onclick="openHolidays()" title="Ferienzeiten verwalten">
-      📅
-    </button>
+            onclick="openHolidays()" title="Ferienzeiten verwalten">📅</button>
     <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">
       <span id="analyzeBtnText">🔍 Analyze</span>
     </button>
@@ -410,27 +280,25 @@
 </div>
 
 <div class="main">
-  <div class="loading" id="loading">
-    <div class="spinner"></div>
-    Lade Daten von Google Ads API…
-  </div>
-
+  <div class="loading" id="loading"><div class="spinner"></div>Lade Daten von Google Ads API…</div>
   <div class="error-box" id="errorBox"></div>
 
-  <!-- Holiday-Banner (nur sichtbar wenn Normalisierung aktiv) -->
+  <!-- Holiday Banner -->
   <div class="holiday-banner" id="holidayBanner" style="display:none">
     <div>
-      <div class="holiday-banner-text">
-        🏖️ <strong>Urlaubsnormalisierung aktiv</strong>
-        — <span id="holidayBannerPeriods"></span>
-      </div>
+      <div class="holiday-banner-text">🏖️ <strong>Urlaubsnormalisierung aktiv</strong> — <span id="holidayBannerPeriods"></span></div>
       <div class="holiday-banner-detail" id="holidayBannerDetail"></div>
     </div>
-    <button class="btn" style="background:rgba(245,158,11,0.15);color:var(--yellow);
-                               font-size:11px;padding:5px 12px"
-            onclick="openHolidays()">
-      ✏️ Bearbeiten
-    </button>
+    <button class="btn" style="background:rgba(245,158,11,0.15);color:var(--yellow);font-size:11px;padding:5px 12px"
+            onclick="openHolidays()">✏️ Bearbeiten</button>
+  </div>
+
+  <!-- Median Banner -->
+  <div class="median-banner" id="medianBanner">
+    <div>
+      <div class="median-banner-text">📊 <strong>Median-Modus aktiv</strong> — Cap-Basis: rollierender 90d-Median (Urlaubswochen bereinigt)</div>
+      <div class="median-banner-detail" id="medianBannerDetail"></div>
+    </div>
   </div>
 
   <!-- Holiday Modal -->
@@ -441,24 +309,20 @@
         <button class="modal-close" onclick="closeHolidays()">✕</button>
       </div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-        Einmal jährlich aktualisieren. Klick-Gates (15/30 Schwellen) werden für Urlaubstage 
+        Einmal jährlich aktualisieren. Klick-Gates (15/30 Schwellen) werden für Urlaubstage
         im 14d/30d-Fenster automatisch hochgerechnet — CPC-Basis bleibt unverändert.
+        Perioden &lt; 5 Tage werden ignoriert.
       </p>
-
       <div style="display:grid;grid-template-columns:1fr 140px 140px 34px;gap:8px;margin-bottom:6px">
         <div class="col-label">Name</div>
         <div class="col-label">Start</div>
         <div class="col-label">Ende</div>
         <div></div>
       </div>
-
       <div id="holidayList"></div>
-
       <button class="btn-add" onclick="addHolidayRow()">+ Periode hinzufügen</button>
-
       <div class="modal-footer">
-        <button class="btn" style="background:var(--surface2);color:var(--muted)"
-                onclick="closeHolidays()">Abbrechen</button>
+        <button class="btn" style="background:var(--surface2);color:var(--muted)" onclick="closeHolidays()">Abbrechen</button>
         <button class="btn btn-success" onclick="saveHolidays()">💾 Speichern</button>
       </div>
       <div class="save-msg" id="holidaySaveMsg"></div>
@@ -472,17 +336,23 @@
 
     <!-- Apply Bar -->
     <div class="apply-bar">
-      <div class="apply-info">
-        <strong id="applyCount">0</strong> Strategien bereit zum Applyen
-        &nbsp;<span class="excluded-note" id="excludedNote">(<span id="excludedCount">0</span> ausgeschlossen)</span>
+      <div class="apply-left">
+        <div class="apply-info">
+          <strong id="applyCount">0</strong> Strategien bereit zum Applyen
+          &nbsp;<span class="excluded-note" id="excludedNote">(<span id="excludedCount">0</span> ausgeschlossen)</span>
+        </div>
+        <!-- Avg / Median Toggle -->
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="modeAvgBtn" onclick="setCapMode('avg')">Avg CPC</button>
+          <button class="mode-btn" id="modeMedianBtn" onclick="setCapMode('median')">Median CPC</button>
+        </div>
+        <div class="mode-info-bar mode-info-avg" id="modeInfoBar"></div>
       </div>
       <div class="apply-controls">
         <label class="checkbox-label">
           <input type="checkbox" id="includeWarn"> WARN auch applyen
         </label>
-        <button class="btn btn-success" id="applyBtn" onclick="applyChanges()">
-          ✅ Apply Changes
-        </button>
+        <button class="btn btn-success" id="applyBtn" onclick="applyChanges()">✅ Apply Changes</button>
       </div>
     </div>
 
@@ -491,12 +361,11 @@
       <ul id="resultList"></ul>
     </div>
 
-    <!-- ─── OUTLIER SCORECARD ─── -->
+    <!-- Outlier Scorecard -->
     <div class="scorecard" id="outlierScorecard">
       <div class="scorecard-header" onclick="toggleScorecard()">
         <div class="scorecard-title">
-          <span>⚠️</span>
-          Outlier-Scorecard
+          <span>⚠️</span>Outlier-Scorecard
           <span class="badge badge-warn" id="outlierCount">0 Ausreißer</span>
         </div>
         <div style="display:flex;align-items:center;gap:12px">
@@ -505,11 +374,7 @@
         </div>
       </div>
       <div class="scorecard-body" id="scorecardBody">
-
-        <!-- Stat distribution -->
         <div class="sc-stat-grid" id="scStatGrid"></div>
-
-        <!-- Legend -->
         <div class="outlier-legend">
           <span style="font-size:11px;font-weight:600;color:var(--muted)">Flag-Typen:</span>
           <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--red)"></div>Hohes Cap-Delta</div>
@@ -517,30 +382,21 @@
           <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--purple)"></div>Score-Ausreißer</div>
           <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>IS-Loss &gt;60%</div>
           <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>Sehr niedriger CPC</div>
-          <div style="margin-left:auto;font-size:11px;color:var(--muted)">
-            ☑ = vom Apply ausschließen
-          </div>
+          <div style="margin-left:auto;font-size:11px;color:var(--muted)">☑ = vom Apply ausschließen</div>
         </div>
-
         <div class="outlier-table-wrap">
           <table class="outlier-table">
             <thead>
               <tr>
                 <th style="width:36px" data-tip="Vom Apply ausschließen">Excl.</th>
-                <th>Strategie</th>
-                <th>Bucket</th>
-                <th>Cap Alt → Neu</th>
-                <th>Delta</th>
-                <th>CPC 14d/30d</th>
-                <th>Score</th>
-                <th>Flags</th>
-                <th>Schwere</th>
+                <th>Strategie</th><th>Bucket</th>
+                <th>Cap Alt</th><th>Cap Avg</th><th>Cap Median</th>
+                <th>Delta (aktiv)</th><th>CPC 14d/30d</th><th>Score</th><th>Flags</th><th>Schwere</th>
               </tr>
             </thead>
             <tbody id="outlierBody"></tbody>
           </table>
         </div>
-
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn" style="background:rgba(239,68,68,0.15);color:var(--red);font-size:12px" onclick="excludeAllOutliers()">
             🚫 Alle Ausreißer ausschließen
@@ -549,16 +405,14 @@
             ✅ Alle wieder einschließen
           </button>
         </div>
-
       </div>
     </div>
 
     <!-- Budget Health -->
-    <div class="section" id="budgetHealthSection">
+    <div class="section">
       <div class="section-header">
         <div class="section-title collapse-toggle" onclick="toggleSection('budgetHealth')">
-          ⚡ Cap & Budget Health
-          <span class="badge" id="budgetLimitedCount">0</span>
+          ⚡ Cap &amp; Budget Health <span class="badge" id="budgetLimitedCount">0</span>
         </div>
       </div>
       <div class="collapsible" id="budgetHealth">
@@ -566,12 +420,10 @@
           <table>
             <thead>
               <tr>
-                <th>Strategie</th>
-                <th>Bucket</th>
-                <th data-tip="Kampagnen mit Gebotslimit-Einschränkung">Cap-limitiert</th>
-                <th data-tip="Kampagnen mit Budget-Einschränkung">Budget-limitiert</th>
-                <th>Cap Alt → Neu</th>
-                <th>Handlungsempfehlung</th>
+                <th>Strategie</th><th>Bucket</th>
+                <th data-tip="Kampagnen mit Gebotslimit">Cap-limitiert</th>
+                <th data-tip="Kampagnen mit Budget-Limit">Budget-limitiert</th>
+                <th>Cap Alt → Neu</th><th>Handlungsempfehlung</th>
               </tr>
             </thead>
             <tbody id="budgetHealthBody"></tbody>
@@ -584,8 +436,7 @@
     <div class="section">
       <div class="section-header">
         <div class="section-title collapse-toggle" onclick="toggleSection('capChanges')">
-          📊 Cap-Änderungen
-          <span class="badge" id="capChangesCount">0</span>
+          📊 Cap-Änderungen <span class="badge" id="capChangesCount">0</span>
         </div>
       </div>
       <div class="collapsible" id="capChanges">
@@ -594,17 +445,14 @@
             <thead>
               <tr>
                 <th style="width:36px" data-tip="Vom Apply ausschließen">Excl.</th>
-                <th>Strategie</th>
-                <th>Bucket</th>
-                <th>Clicks 14d / 30d</th>
-                <th>avgCPC 14d / 30d</th>
-                <th>Basis</th>
-                <th>Cap Alt</th>
-                <th>Cap Neu</th>
-                <th>Delta</th>
-                <th>IS Lost Budget</th>
-                <th>Reason</th>
-                <th data-tip="Priorisierungs-Score: Click Opportunity × Konfidenz">Score</th>
+                <th>Strategie</th><th>Bucket</th>
+                <th>Clicks 14d/30d</th><th>avgCPC 14d/30d</th>
+                <th>Basis</th><th>Cap Alt</th>
+                <th data-tip="avgCPC ×1.10 — Standard">Cap Avg</th>
+                <th data-tip="Median 90d (Urlaubswochen bereinigt) ×1.10">Cap Median</th>
+                <th>Delta (aktiv)</th>
+                <th>IS Lost</th><th>Reason</th>
+                <th data-tip="Click Opportunity × Konfidenz">Score</th>
               </tr>
             </thead>
             <tbody id="capChangesBody"></tbody>
@@ -617,20 +465,14 @@
     <div class="section">
       <div class="section-header">
         <div class="section-title collapse-toggle collapsed" onclick="toggleSection('skipTable')">
-          ⏭ SKIP
-          <span class="badge" id="skipCount">0</span>
+          ⏭ SKIP <span class="badge" id="skipCount">0</span>
         </div>
       </div>
       <div class="collapsible" id="skipTable" style="display:none">
         <div class="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>Strategie</th>
-                <th>Clicks 14d / 30d</th>
-                <th>Grund</th>
-                <th>Empfehlung</th>
-              </tr>
+              <tr><th>Strategie</th><th>Clicks 14d/30d</th><th>Grund</th><th>Empfehlung</th></tr>
             </thead>
             <tbody id="skipBody"></tbody>
           </table>
@@ -648,126 +490,182 @@
 </div>
 
 <script>
-let analysisData = null;
-let excludedStrategies = new Set(); // resource_names or indices
+let analysisData   = null;
+let excludedStrategies = new Set();
+let capMode = 'avg';  // 'avg' | 'median'
+
+// ─── CAP MODE ────────────────────────────────────────────────────
+function setCapMode(mode) {
+  capMode = mode;
+  document.getElementById('modeAvgBtn').classList.toggle('active', mode === 'avg');
+  document.getElementById('modeMedianBtn').classList.toggle('active', mode === 'median');
+  document.getElementById('modeMedianBtn').classList.toggle('median-active', mode === 'median');
+
+  const infoBar = document.getElementById('modeInfoBar');
+  const medBanner = document.getElementById('medianBanner');
+
+  if (mode === 'median') {
+    infoBar.className = 'mode-info-bar mode-info-median';
+    if (analysisData?.median_info) {
+      const mi = analysisData.median_info;
+      infoBar.textContent =
+        `${mi.strategies_with_median} Strategien mit Median-Cap · ${mi.strategies_fallback} Fallback auf Avg · ${mi.lookback_days}d Lookback`;
+      infoBar.style.display = 'block';
+    }
+    medBanner.classList.add('show');
+  } else {
+    infoBar.className = 'mode-info-bar mode-info-avg';
+    infoBar.textContent = 'Standard: avgCPC ×1.10';
+    infoBar.style.display = 'block';
+    medBanner.classList.remove('show');
+  }
+
+  // Summary cards neu rendern mit richtigen Zahlen
+  if (analysisData) updateSummaryForMode();
+  // Tabelle: aktive Caps hervorheben
+  refreshCapHighlight();
+}
+
+function updateSummaryForMode() {
+  const s = analysisData.summary;
+  const isMedian = capMode === 'median';
+  const inc  = isMedian ? s.median_increases_eur  : s.total_increases_eur;
+  const dec  = isMedian ? s.median_decreases_eur  : s.total_decreases_eur;
+  const net  = isMedian ? s.median_net_delta_eur  : s.net_delta_eur;
+  const incC = isMedian ? s.median_increases_count: s.increases_count;
+  const decC = isMedian ? s.median_decreases_count: s.decreases_count;
+
+  document.getElementById('card-inc').textContent  = `+${inc.toFixed(2)}€`;
+  document.getElementById('card-dec').textContent  = `${dec.toFixed(2)}€`;
+  document.getElementById('card-net').textContent  = `${net >= 0 ? '+' : ''}${net.toFixed(2)}€`;
+  document.getElementById('card-net').className    = 'card-value ' + (net >= 0 ? 'positive' : 'negative');
+  document.getElementById('card-inc-sub').textContent = `${incC} Strategien`;
+  document.getElementById('card-dec-sub').textContent = `${decC} Strategien`;
+}
+
+function refreshCapHighlight() {
+  // Avg-Spalten und Median-Spalten in der Cap-Changes-Tabelle hervorheben
+  document.querySelectorAll('.cap-avg-cell').forEach(el => {
+    el.classList.toggle('cap-active',   capMode === 'avg');
+    el.classList.toggle('cap-inactive', capMode !== 'avg');
+  });
+  document.querySelectorAll('.cap-median-cell').forEach(el => {
+    el.classList.toggle('cap-active',   capMode === 'median');
+    el.classList.toggle('cap-inactive', capMode !== 'median');
+  });
+  // Delta-Spalten updaten
+  document.querySelectorAll('[data-delta-avg]').forEach(el => {
+    const avgD    = el.dataset.deltaAvg;
+    const medD    = el.dataset.deltaMedian;
+    const activeD = capMode === 'median' ? medD : avgD;
+    const val     = parseFloat(activeD);
+    const cls     = val > 0 ? 'delta-up' : val < 0 ? 'delta-down' : 'delta-zero';
+    const txt     = val > 0 ? `+${activeD}€` : val < 0 ? `${activeD}€` : '±0';
+    el.innerHTML  = `<span class="delta ${cls}">${txt}</span>`;
+  });
+}
 
 // ─── OUTLIER DETECTION ───────────────────────────────────────────
 function iqrOutliers(values) {
-  const sorted = [...values].sort((a, b) => a - b);
-  const q1 = sorted[Math.floor(sorted.length * 0.25)] ?? 0;
-  const q3 = sorted[Math.floor(sorted.length * 0.75)] ?? 0;
+  const s = [...values].sort((a,b) => a-b);
+  const q1 = s[Math.floor(s.length*0.25)] ?? 0;
+  const q3 = s[Math.floor(s.length*0.75)] ?? 0;
   const iqr = q3 - q1;
-  return { q1, q3, iqr, low: q1 - 1.5 * iqr, high: q3 + 1.5 * iqr, median: sorted[Math.floor(sorted.length / 2)] ?? 0 };
+  return { q1, q3, iqr, high: q3 + 1.5*iqr, median: s[Math.floor(s.length/2)] ?? 0 };
 }
-
-function mean(arr) { return arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0; }
+function mean(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 function stddev(arr) {
   const m = mean(arr);
-  return arr.length < 2 ? 0 : Math.sqrt(arr.reduce((s,v) => s + (v-m)**2, 0) / arr.length);
+  return arr.length < 2 ? 0 : Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length);
 }
 
 function detectOutliers(strategies) {
   if (!strategies.length) return [];
-
-  const deltas   = strategies.map(s => Math.abs((s.cap_delta_micros || 0) / 1e6));
+  const deltas    = strategies.map(s => Math.abs((s.cap_delta_micros||0)/1e6));
   const cpcRatios = strategies.map(s => {
-    const c30 = s.avg_cpc_30d_micros || 0;
-    const c14 = s.avg_cpc_14d_micros || 0;
-    return c30 > 0 ? c14 / c30 : 1;
+    const c30 = s.avg_cpc_30d_micros||0, c14 = s.avg_cpc_14d_micros||0;
+    return c30 > 0 ? c14/c30 : 1;
   });
-  const scores   = strategies.map(s => s.score || 0);
-  const isLosses = strategies.map(s => s.rank_lost_is_30d || 0);
+  const scores   = strategies.map(s => s.score||0);
+  const isLosses = strategies.map(s => s.rank_lost_is_30d||0);
+  const dStats = iqrOutliers(deltas), scStats = iqrOutliers(scores);
 
-  const dStats  = iqrOutliers(deltas);
-  const cStats  = iqrOutliers(cpcRatios);
-  const scStats = iqrOutliers(scores);
-  const isStats = iqrOutliers(isLosses);
-
-  return strategies.map((s, i) => {
+  return strategies.map((s,i) => {
     const flags = [];
-    const absDelta = deltas[i];
-    const cpcRatio = cpcRatios[i];
-    const score    = scores[i];
-    const isLoss   = isLosses[i];
-
-    // Flag: large absolute cap delta (IQR outlier + min threshold €0.50)
+    const absDelta = deltas[i], cpcRatio = cpcRatios[i], score = scores[i], isLoss = isLosses[i];
     if (absDelta > dStats.high && absDelta > 0.5)
-      flags.push({ type: 'delta', label: `Δ${absDelta > 5 ? 'XXL' : 'XL'} Cap +/-${absDelta.toFixed(2)}€` });
-
-    // Flag: CPC jump > 2× or drop < 0.4×
+      flags.push({type:'delta', label:`Δ${absDelta>5?'XXL':'XL'} Cap ±${absDelta.toFixed(2)}€`});
     if (cpcRatio > 2.0)
-      flags.push({ type: 'cpc', label: `CPC ×${cpcRatio.toFixed(1)} (14d/30d)` });
-    else if (cpcRatio < 0.4 && (s.avg_cpc_30d_micros || 0) > 0)
-      flags.push({ type: 'lowcpc', label: `CPC ↓${(cpcRatio*100).toFixed(0)}% (14d/30d)` });
-
-    // Flag: score outlier
+      flags.push({type:'cpc', label:`CPC ×${cpcRatio.toFixed(1)} (14d/30d)`});
+    else if (cpcRatio < 0.4 && (s.avg_cpc_30d_micros||0) > 0)
+      flags.push({type:'lowcpc', label:`CPC ↓${(cpcRatio*100).toFixed(0)}% (14d/30d)`});
     if (score > scStats.high && score > 15)
-      flags.push({ type: 'score', label: `Score ${score.toFixed(1)} (P75+IQR)` });
-
-    // Flag: IS loss > 60%
+      flags.push({type:'score', label:`Score ${score.toFixed(1)} (P75+IQR)`});
     if (isLoss > 0.6)
-      flags.push({ type: 'is', label: `IS-Loss ${(isLoss*100).toFixed(0)}%` });
-
+      flags.push({type:'is', label:`IS-Loss ${(isLoss*100).toFixed(0)}%`});
     const severity = flags.length >= 2 ? 'high' : flags.length === 1 ? 'med' : 'none';
-
-    return { ...s, _flags: flags, _severity: severity, _i: i };
+    return {...s, _flags: flags, _severity: severity, _i: i};
   }).filter(s => s._flags.length > 0);
 }
 
-// ─── RENDER ──────────────────────────────────────────────────────
+// ─── ANALYZE ─────────────────────────────────────────────────────
 async function analyze() {
-  const customerId = document.getElementById('customerId').value.trim();
-  if (!customerId) { alert('Bitte Customer ID eingeben'); return; }
-
-  document.getElementById('placeholder').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('errorBox').style.display = 'none';
-  document.getElementById('resultBox').style.display = 'none';
-  document.getElementById('analyzeBtn').disabled = true;
+  const cid = document.getElementById('customerId').value.trim();
+  if (!cid) { alert('Bitte Customer ID eingeben'); return; }
+  document.getElementById('placeholder').style.display  = 'none';
+  document.getElementById('dashboard').style.display    = 'none';
+  document.getElementById('loading').style.display      = 'block';
+  document.getElementById('errorBox').style.display     = 'none';
+  document.getElementById('resultBox').style.display    = 'none';
+  document.getElementById('analyzeBtn').disabled        = true;
   document.getElementById('analyzeBtnText').textContent = '⏳ Lädt…';
   excludedStrategies.clear();
 
   try {
-    const res = await fetch(`/api/analyze?customer_id=${encodeURIComponent(customerId)}`);
+    const res  = await fetch(`/api/analyze?customer_id=${encodeURIComponent(cid)}`);
     const data = await res.json();
     if (data.error) { showError(data.error, data.details); return; }
     analysisData = data;
     renderDashboard(data);
-  } catch (e) {
+  } catch(e) {
     showError('Netzwerkfehler: ' + e.message);
   } finally {
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('loading').style.display      = 'none';
+    document.getElementById('analyzeBtn').disabled        = false;
     document.getElementById('analyzeBtnText').textContent = '🔍 Analyze';
   }
 }
 
 function showError(msg, details) {
   const box = document.getElementById('errorBox');
-  let html = `<strong>❌ Fehler:</strong> ${msg}`;
-  if (details) html += '<ul style="margin-top:8px">' + details.map(d => `<li>${d.message}</li>`).join('') + '</ul>';
-  box.innerHTML = html;
-  box.style.display = 'block';
+  let html  = `<strong>❌ Fehler:</strong> ${msg}`;
+  if (details) html += '<ul style="margin-top:8px">' + details.map(d=>`<li>${d.message}</li>`).join('') + '</ul>';
+  box.innerHTML = html; box.style.display = 'block';
 }
 
+// ─── RENDER DASHBOARD ────────────────────────────────────────────
 function renderDashboard(data) {
   const s = data.summary;
 
-  // ── Holiday Banner ──
+  // Holiday banner
   const hi = data.holiday_info;
   const banner = document.getElementById('holidayBanner');
-  if (hi && hi.normalization_active) {
-    document.getElementById('holidayBannerPeriods').textContent =
-      hi.affected_periods.join(', ');
-    document.getElementById('holidayBannerDetail').textContent =
+  if (hi?.normalization_active) {
+    document.getElementById('holidayBannerPeriods').textContent = hi.affected_periods.join(', ');
+    document.getElementById('holidayBannerDetail').textContent  =
       `${hi.holidays_in_14d} Urlaubstage im 14d-Fenster, ${hi.holidays_in_30d} im 30d-Fenster`
-      + (hi.normalized_strategies_count > 0
-        ? ` — ${hi.normalized_strategies_count} Strategien hochgerechnet`
-        : '');
+      + (hi.normalized_strategies_count > 0 ? ` — ${hi.normalized_strategies_count} Strategien hochgerechnet` : '');
     banner.style.display = 'flex';
   } else {
     banner.style.display = 'none';
+  }
+
+  // Median banner detail
+  if (data.median_info) {
+    const mi = data.median_info;
+    document.getElementById('medianBannerDetail').textContent =
+      `${mi.strategies_with_median} Strategien mit Median-Cap · ${mi.strategies_fallback} Fallback auf Avg · Lookback: ${mi.lookback_days}d · Min. ${mi.min_weeks_required} Wochen`;
+    if (capMode === 'median') document.getElementById('medianBanner').classList.add('show');
   }
 
   // Summary cards
@@ -779,18 +677,18 @@ function renderDashboard(data) {
     </div>
     <div class="card">
       <div class="card-label">Erhöhungen</div>
-      <div class="card-value positive">+${s.total_increases_eur.toFixed(2)}€</div>
-      <div class="card-sub">${s.increases_count} Strategien</div>
+      <div class="card-value positive" id="card-inc">+${s.total_increases_eur.toFixed(2)}€</div>
+      <div class="card-sub" id="card-inc-sub">${s.increases_count} Strategien</div>
     </div>
     <div class="card">
       <div class="card-label">Senkungen</div>
-      <div class="card-value negative">${s.total_decreases_eur.toFixed(2)}€</div>
-      <div class="card-sub">${s.decreases_count} Strategien</div>
+      <div class="card-value negative" id="card-dec">${s.total_decreases_eur.toFixed(2)}€</div>
+      <div class="card-sub" id="card-dec-sub">${s.decreases_count} Strategien</div>
     </div>
     <div class="card">
       <div class="card-label">Netto-Delta</div>
-      <div class="card-value ${s.net_delta_eur >= 0 ? 'positive' : 'negative'}">
-        ${s.net_delta_eur >= 0 ? '+' : ''}${s.net_delta_eur.toFixed(2)}€
+      <div class="card-value ${s.net_delta_eur>=0?'positive':'negative'}" id="card-net">
+        ${s.net_delta_eur>=0?'+':''}${s.net_delta_eur.toFixed(2)}€
       </div>
       <div class="card-sub">Gesamt Cap-Bewegung</div>
     </div>
@@ -801,8 +699,8 @@ function renderDashboard(data) {
     </div>
     <div class="card">
       <div class="card-label">Gewichtetes Delta</div>
-      <div class="card-value ${s.weighted_delta_eur >= 0 ? 'positive' : 'negative'}">
-        ${s.weighted_delta_eur >= 0 ? '+' : ''}${s.weighted_delta_eur.toFixed(2)}€
+      <div class="card-value ${s.weighted_delta_eur>=0?'positive':'negative'}">
+        ${s.weighted_delta_eur>=0?'+':''}${s.weighted_delta_eur.toFixed(2)}€
       </div>
       <div class="card-sub">Cap-Delta × Kampagnen</div>
     </div>
@@ -814,17 +712,15 @@ function renderDashboard(data) {
   const bl = data.budget_limited;
   document.getElementById('budgetLimitedCount').textContent = bl.length;
   const bhBody = document.getElementById('budgetHealthBody');
-  if (bl.length === 0) {
+  if (!bl.length) {
     bhBody.innerHTML = '<tr class="empty-row"><td colspan="6">Keine cap- oder budget-limitierten Strategien</td></tr>';
   } else {
     bhBody.innerHTML = bl.map(b => {
       const capColor = b.cap_limited === b.total_campaigns ? '#ef4444' : b.cap_limited > 0 ? '#f59e0b' : '#8892a4';
       const budColor = b.budget_limited > 0 ? '#f59e0b' : '#8892a4';
       const actionColor = b.action.startsWith('🔴') ? '#ef4444' : b.action.startsWith('⚠️') ? '#f59e0b' : b.action.startsWith('✅') ? '#22c55e' : '#3b82f6';
-      const capChange = b.cap_delta ? `<span class="mono" style="color:${b.cap_delta.startsWith('+') ? '#22c55e' : '#ef4444'}">${b.cap_delta}</span>` : '—';
-      const capStr = b.cap_alt && b.cap_neu
-        ? `${b.cap_alt}€ → ${b.cap_neu}€ ${capChange}`
-        : b.cap_alt ? `${b.cap_alt}€` : '—';
+      const capChange = b.cap_delta ? `<span class="mono" style="color:${b.cap_delta.startsWith('+')?'#22c55e':'#ef4444'}">${b.cap_delta}</span>` : '—';
+      const capStr = b.cap_alt && b.cap_neu ? `${b.cap_alt}€ → ${b.cap_neu}€ ${capChange}` : b.cap_alt ? `${b.cap_alt}€` : '—';
       return `<tr>
         <td class="name-cell">${b.name}</td>
         <td><span class="bucket-pill pill-${b.bucket}">${b.bucket}</span></td>
@@ -836,56 +732,52 @@ function renderDashboard(data) {
     }).join('');
   }
 
-  // Collect all actionable
+  // All actionable
   const allActionable = [
-    ...data.buckets.NEAR30_READY,
-    ...data.buckets.READY,
-    ...data.buckets.LOWVOL_READY,
-    ...data.buckets.LOWVOL_DECREASE,
+    ...data.buckets.NEAR30_READY, ...data.buckets.READY,
+    ...data.buckets.LOWVOL_READY, ...data.buckets.LOWVOL_DECREASE,
     ...data.buckets.WARN,
   ];
-
   document.getElementById('capChangesCount').textContent = allActionable.length;
 
-  // ─── OUTLIER SCORECARD ───
+  // Outlier Scorecard
   renderOutlierScorecard(allActionable);
 
-  // Cap Changes table (with exclude checkboxes)
+  // Cap Changes table
   const ccBody = document.getElementById('capChangesBody');
-  if (allActionable.length === 0) {
-    ccBody.innerHTML = '<tr class="empty-row"><td colspan="12">Keine Cap-Änderungen</td></tr>';
+  if (!allActionable.length) {
+    ccBody.innerHTML = '<tr class="empty-row"><td colspan="13">Keine Cap-Änderungen</td></tr>';
   } else {
     ccBody.innerHTML = allActionable
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .map((s, i) => {
-        const rid = s.resource_name || `idx_${i}`;
-        const delta = s.cap_delta_micros || 0;
-        const deltaEur = (delta / 1e6).toFixed(2);
-        const deltaClass = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero';
-        const deltaText = delta > 0 ? `+${deltaEur}€` : delta < 0 ? `${deltaEur}€` : '±0';
-        const rankLost = s.rank_lost_is_30d > 0.05
-          ? `<span style="color:${s.rank_lost_is_30d > 0.5 ? '#ef4444' : s.rank_lost_is_30d > 0.3 ? '#f59e0b' : '#8892a4'}">${(s.rank_lost_is_30d*100).toFixed(1)}%↓</span>` : '';
-        const budgetLost = s.budget_lost_is_30d > 0.01
+      .sort((a,b) => (b.score||0)-(a.score||0))
+      .map((s,i) => {
+        const rid  = s.resource_name || `idx_${i}`;
+        const capAlt    = s.current_cap_micros   ? (s.current_cap_micros/1e6).toFixed(2)   : '—';
+        const capAvg    = s.new_cap_micros        ? (s.new_cap_micros/1e6).toFixed(2)       : '—';
+        const capMed    = s.new_cap_median_micros ? (s.new_cap_median_micros/1e6).toFixed(2): capAvg;
+        const fbBadge   = s.median_fallback       ? '<span class="fallback-badge">fb</span>' : '';
+        const dAvg  = s.cap_delta_micros        ? (s.cap_delta_micros/1e6).toFixed(2)       : '0';
+        const dMed  = s.cap_delta_median_micros ? (s.cap_delta_median_micros/1e6).toFixed(2): dAvg;
+        const rankLost  = s.rank_lost_is_30d > 0.05
+          ? `<span style="color:${s.rank_lost_is_30d>0.5?'#ef4444':s.rank_lost_is_30d>0.3?'#f59e0b':'#8892a4'}">${(s.rank_lost_is_30d*100).toFixed(1)}%↓</span>` : '';
+        const budLost   = s.budget_lost_is_30d > 0.01
           ? `<span style="color:#3b82f6">${(s.budget_lost_is_30d*100).toFixed(1)}%💰</span>` : '';
-        const isLostCell = [rankLost, budgetLost].filter(Boolean).join(' ') || '—';
-
         return `<tr class="bucket-${s.bucket}" id="caprow_${rid}" data-rid="${rid}">
-          <td>
-            <input type="checkbox" class="exclude-check" data-rid="${rid}"
-              onchange="toggleExclude('${rid}')"
-              title="Vom Apply ausschließen">
-          </td>
+          <td><input type="checkbox" class="exclude-check" data-rid="${rid}" onchange="toggleExclude('${rid}')"></td>
           <td class="name-cell">${s.name}</td>
           <td><span class="bucket-pill pill-${s.bucket}">${s.bucket}</span></td>
-          <td class="mono">${s.clicks_14d} / ${s.clicks_30d}</td>
+          <td class="mono">${s.clicks_14d_normalized||s.clicks_14d} / ${s.clicks_30d_normalized||s.clicks_30d}</td>
           <td class="mono">${(s.avg_cpc_14d_micros/1e6).toFixed(2)} / ${(s.avg_cpc_30d_micros/1e6).toFixed(2)}</td>
-          <td class="mono" style="color:var(--muted)">${s.basis_window || '—'}</td>
-          <td class="mono">${s.current_cap_micros ? (s.current_cap_micros/1e6).toFixed(2) : '—'}€</td>
-          <td class="mono">${s.new_cap_micros ? (s.new_cap_micros/1e6).toFixed(2) : '—'}€</td>
-          <td><span class="delta ${deltaClass}">${deltaText}</span></td>
-          <td>${isLostCell}</td>
-          <td style="color:var(--muted);font-size:12px;max-width:200px">${s.reason || ''}</td>
-          <td class="mono" style="color:${s.score > 20 ? '#ef4444' : s.score > 10 ? '#f59e0b' : '#8892a4'}">${s.score ? s.score.toFixed(1) : '—'}</td>
+          <td class="mono" style="color:var(--muted)">${s.basis_window||'—'}</td>
+          <td class="mono">${capAlt}€</td>
+          <td class="mono cap-avg-cell ${capMode==='avg'?'cap-active':'cap-inactive'}">${capAvg}€</td>
+          <td class="mono cap-median-cell ${capMode==='median'?'cap-active':'cap-inactive'}">${capMed}€${fbBadge}</td>
+          <td data-delta-avg="${dAvg}" data-delta-median="${dMed}">
+            ${(() => { const v=parseFloat(capMode==='median'?dMed:dAvg); const c=v>0?'delta-up':v<0?'delta-down':'delta-zero'; const t=v>0?`+${capMode==='median'?dMed:dAvg}€`:v<0?`${capMode==='median'?dMed:dAvg}€`:'±0'; return `<span class="delta ${c}">${t}</span>`; })()}
+          </td>
+          <td>${[rankLost,budLost].filter(Boolean).join(' ')||'—'}</td>
+          <td style="color:var(--muted);font-size:12px;max-width:180px">${s.reason||''}</td>
+          <td class="mono" style="color:${s.score>20?'#ef4444':s.score>10?'#f59e0b':'#8892a4'}">${s.score?s.score.toFixed(1):'—'}</td>
         </tr>`;
       }).join('');
   }
@@ -899,107 +791,75 @@ function renderDashboard(data) {
       <td class="name-cell">${s.name}</td>
       <td class="mono">${s.clicks_14d} / ${s.clicks_30d}</td>
       <td style="color:var(--muted);font-size:12px">${s.reason}</td>
-      <td style="color:var(--muted);font-size:12px">${s.recommendation || ''}</td>
+      <td style="color:var(--muted);font-size:12px">${s.recommendation||''}</td>
     </tr>`).join('')
     || '<tr class="empty-row"><td colspan="4">Keine aktiven SKIP-Strategien</td></tr>';
 
   document.getElementById('dashboard').style.display = 'block';
+
+  // Mode info bar
+  setCapMode(capMode);
 }
 
+// ─── OUTLIER SCORECARD ───────────────────────────────────────────
 function renderOutlierScorecard(strategies) {
   if (!strategies.length) return;
-
-  // Stats for summary
-  const deltas  = strategies.map(s => Math.abs((s.cap_delta_micros || 0) / 1e6));
-  const scores  = strategies.map(s => s.score || 0);
-  const cpcs    = strategies.map(s => (s.avg_cpc_14d_micros || 0) / 1e6);
-  const dStats  = iqrOutliers(deltas);
-  const scStats = iqrOutliers(scores);
-  const cpcStats = iqrOutliers(cpcs);
+  const deltas = strategies.map(s => Math.abs((s.cap_delta_micros||0)/1e6));
+  const scores = strategies.map(s => s.score||0);
+  const cpcs   = strategies.map(s => (s.avg_cpc_14d_micros||0)/1e6);
+  const dStats = iqrOutliers(deltas), scStats = iqrOutliers(scores), cpcStats = iqrOutliers(cpcs);
 
   document.getElementById('scStatGrid').innerHTML = `
-    <div class="sc-stat">
-      <div class="sc-stat-label">Ø Cap-Delta</div>
-      <div class="sc-stat-val" style="color:var(--blue)">±${mean(deltas).toFixed(2)}€</div>
-      <div class="sc-stat-sub">Median: ±${dStats.median.toFixed(2)}€</div>
-    </div>
-    <div class="sc-stat">
-      <div class="sc-stat-label">IQR Cap-Delta</div>
-      <div class="sc-stat-val" style="color:var(--purple)">${dStats.iqr.toFixed(2)}€</div>
-      <div class="sc-stat-sub">Ausreißer-Schwelle: >${dStats.high.toFixed(2)}€</div>
-    </div>
-    <div class="sc-stat">
-      <div class="sc-stat-label">Ø Score</div>
-      <div class="sc-stat-val" style="color:var(--yellow)">${mean(scores).toFixed(1)}</div>
-      <div class="sc-stat-sub">Max: ${Math.max(...scores).toFixed(1)}</div>
-    </div>
-    <div class="sc-stat">
-      <div class="sc-stat-label">Ø CPC 14d</div>
-      <div class="sc-stat-val" style="color:var(--cyan)">${mean(cpcs).toFixed(2)}€</div>
-      <div class="sc-stat-sub">StdDev: ${stddev(cpcs).toFixed(2)}€</div>
-    </div>
-    <div class="sc-stat">
-      <div class="sc-stat-label">CPC Ausreißer-Schwelle</div>
-      <div class="sc-stat-val" style="color:var(--orange)">&gt;${cpcStats.high.toFixed(2)}€</div>
-      <div class="sc-stat-sub">IQR: ${cpcStats.iqr.toFixed(2)}€</div>
-    </div>
-    <div class="sc-stat">
-      <div class="sc-stat-label">Strategien total</div>
-      <div class="sc-stat-val" style="color:var(--muted)">${strategies.length}</div>
-      <div class="sc-stat-sub">Actionable</div>
-    </div>
+    <div class="sc-stat"><div class="sc-stat-label">Ø Cap-Delta</div><div class="sc-stat-val" style="color:var(--blue)">±${mean(deltas).toFixed(2)}€</div><div class="sc-stat-sub">Median: ±${dStats.median.toFixed(2)}€</div></div>
+    <div class="sc-stat"><div class="sc-stat-label">IQR Cap-Delta</div><div class="sc-stat-val" style="color:var(--purple)">${dStats.iqr.toFixed(2)}€</div><div class="sc-stat-sub">Ausreißer &gt;${dStats.high.toFixed(2)}€</div></div>
+    <div class="sc-stat"><div class="sc-stat-label">Ø Score</div><div class="sc-stat-val" style="color:var(--yellow)">${mean(scores).toFixed(1)}</div><div class="sc-stat-sub">Max: ${Math.max(...scores).toFixed(1)}</div></div>
+    <div class="sc-stat"><div class="sc-stat-label">Ø CPC 14d</div><div class="sc-stat-val" style="color:var(--cyan)">${mean(cpcs).toFixed(2)}€</div><div class="sc-stat-sub">StdDev: ${stddev(cpcs).toFixed(2)}€</div></div>
+    <div class="sc-stat"><div class="sc-stat-label">CPC Ausreißer</div><div class="sc-stat-val" style="color:var(--orange)">&gt;${cpcStats.high.toFixed(2)}€</div><div class="sc-stat-sub">IQR: ${cpcStats.iqr.toFixed(2)}€</div></div>
+    <div class="sc-stat"><div class="sc-stat-label">Strategien</div><div class="sc-stat-val" style="color:var(--muted)">${strategies.length}</div><div class="sc-stat-sub">Actionable</div></div>
   `;
 
   const outliers = detectOutliers(strategies);
   document.getElementById('outlierCount').textContent = `${outliers.length} Ausreißer`;
-  if (outliers.length > 0) {
-    document.getElementById('outlierCount').style.cssText = '';
-  }
 
   const tbody = document.getElementById('outlierBody');
-  if (outliers.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Keine Ausreißer erkannt — alle Strategien liegen im normalen Bereich</td></tr>';
+  if (!outliers.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="11">Keine Ausreißer erkannt</td></tr>';
     return;
   }
 
   tbody.innerHTML = outliers.map(s => {
-    const rid = s.resource_name || `idx_${s._i}`;
-    const delta = s.cap_delta_micros || 0;
-    const deltaEur = (delta / 1e6).toFixed(2);
-    const deltaClass = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero';
-    const deltaText = delta > 0 ? `+${deltaEur}€` : delta < 0 ? `${deltaEur}€` : '±0';
-    const capAlt = s.current_cap_micros ? (s.current_cap_micros/1e6).toFixed(2) + '€' : '—';
-    const capNeu = s.new_cap_micros ? (s.new_cap_micros/1e6).toFixed(2) + '€' : '—';
-    const cpc14 = ((s.avg_cpc_14d_micros || 0)/1e6).toFixed(2);
-    const cpc30 = ((s.avg_cpc_30d_micros || 0)/1e6).toFixed(2);
-    const severityClass = s._severity === 'high' ? 'outlier-severity-high' : 'outlier-severity-med';
-    const severityBadge = s._severity === 'high'
-      ? `<span style="color:var(--red);font-weight:700;font-size:11px">🔴 HOCH</span>`
-      : `<span style="color:var(--yellow);font-weight:700;font-size:11px">🟡 MITTEL</span>`;
-    const flagHtml = s._flags.map(f => {
-      const cls = { delta: 'flag-delta', cpc: 'flag-cpc', score: 'flag-score', is: 'flag-is', lowcpc: 'flag-lowcpc' }[f.type] || '';
+    const rid    = s.resource_name || `idx_${s._i}`;
+    const capAlt = s.current_cap_micros   ? (s.current_cap_micros/1e6).toFixed(2)   + '€' : '—';
+    const capAvg = s.new_cap_micros       ? (s.new_cap_micros/1e6).toFixed(2)       + '€' : '—';
+    const capMed = s.new_cap_median_micros? (s.new_cap_median_micros/1e6).toFixed(2)+ '€' : capAvg;
+    const dAvg   = s.cap_delta_micros        ? (s.cap_delta_micros/1e6).toFixed(2)       : '0';
+    const dMed   = s.cap_delta_median_micros ? (s.cap_delta_median_micros/1e6).toFixed(2): dAvg;
+    const activeD= parseFloat(capMode==='median'?dMed:dAvg);
+    const dc     = activeD>0?'delta-up':activeD<0?'delta-down':'delta-zero';
+    const dt     = activeD>0?`+${capMode==='median'?dMed:dAvg}€`:activeD<0?`${capMode==='median'?dMed:dAvg}€`:'±0';
+    const cpc14  = ((s.avg_cpc_14d_micros||0)/1e6).toFixed(2);
+    const cpc30  = ((s.avg_cpc_30d_micros||0)/1e6).toFixed(2);
+    const sc     = s._severity==='high' ? 'outlier-severity-high' : 'outlier-severity-med';
+    const sv     = s._severity==='high' ? `<span style="color:var(--red);font-weight:700;font-size:11px">🔴 HOCH</span>` : `<span style="color:var(--yellow);font-weight:700;font-size:11px">🟡 MITTEL</span>`;
+    const flags  = s._flags.map(f => {
+      const cls = {delta:'flag-delta',cpc:'flag-cpc',score:'flag-score',is:'flag-is',lowcpc:'flag-lowcpc'}[f.type]||'';
       return `<span class="outlier-flag ${cls}">${f.label}</span>`;
     }).join('');
-
-    return `<tr class="outlier-row ${severityClass}" id="outlierrow_${rid}" data-rid="${rid}">
-      <td>
-        <input type="checkbox" class="exclude-check" data-rid="${rid}"
-          id="outlier_chk_${rid}"
-          onchange="toggleExclude('${rid}')"
-          title="Vom Apply ausschließen">
-      </td>
+    return `<tr class="outlier-row ${sc}" id="outlierrow_${rid}" data-rid="${rid}">
+      <td><input type="checkbox" class="exclude-check" data-rid="${rid}" id="outlier_chk_${rid}" onchange="toggleExclude('${rid}')"></td>
       <td class="name-cell">${s.name}</td>
       <td><span class="bucket-pill pill-${s.bucket}">${s.bucket}</span></td>
-      <td class="mono" style="font-size:11px">${capAlt} → ${capNeu}</td>
-      <td><span class="delta ${deltaClass}">${deltaText}</span></td>
+      <td class="mono">${capAlt}</td>
+      <td class="mono cap-avg-cell ${capMode==='avg'?'cap-active':'cap-inactive'}">${capAvg}</td>
+      <td class="mono cap-median-cell ${capMode==='median'?'cap-active':'cap-inactive'}">${capMed}${s.median_fallback?'<span class="fallback-badge">fb</span>':''}</td>
+      <td><span class="delta ${dc}">${dt}</span></td>
       <td class="mono">${cpc14} / ${cpc30}</td>
-      <td class="mono" style="color:${s.score > 20 ? '#ef4444' : s.score > 10 ? '#f59e0b' : '#8892a4'}">${s.score ? s.score.toFixed(1) : '—'}</td>
-      <td>${flagHtml}</td>
-      <td>${severityBadge}</td>
+      <td class="mono" style="color:${s.score>20?'#ef4444':s.score>10?'#f59e0b':'#8892a4'}">${s.score?s.score.toFixed(1):'—'}</td>
+      <td>${flags}</td>
+      <td>${sv}</td>
     </tr>`;
   }).join('');
 
-  // Open scorecard if outliers exist
   if (outliers.length > 0) {
     document.getElementById('scorecardBody').classList.add('open');
     document.getElementById('scChevron').classList.add('open');
@@ -1008,47 +868,29 @@ function renderOutlierScorecard(strategies) {
 
 // ─── EXCLUDE LOGIC ───────────────────────────────────────────────
 function toggleExclude(rid) {
-  const isExcluded = excludedStrategies.has(rid);
-
-  if (isExcluded) {
-    excludedStrategies.delete(rid);
-  } else {
-    excludedStrategies.add(rid);
-  }
-
-  // Sync all checkboxes with this rid
-  document.querySelectorAll(`.exclude-check[data-rid="${rid}"]`)
-    .forEach(cb => cb.checked = !isExcluded);
-
-  // Visual feedback in cap changes table row
+  const was = excludedStrategies.has(rid);
+  was ? excludedStrategies.delete(rid) : excludedStrategies.add(rid);
+  document.querySelectorAll(`.exclude-check[data-rid="${rid}"]`).forEach(cb => cb.checked = !was);
   const capRow = document.getElementById(`caprow_${rid}`);
-  if (capRow) capRow.classList.toggle('excluded-row', !isExcluded);
-
+  if (capRow) capRow.classList.toggle('excluded-row', !was);
   const outlierRow = document.getElementById(`outlierrow_${rid}`);
-  if (outlierRow) outlierRow.style.opacity = !isExcluded ? '0.45' : '1';
-
+  if (outlierRow) outlierRow.style.opacity = !was ? '0.45' : '1';
   updateExcludedNote();
 }
 
 function updateExcludedNote() {
   const note = document.getElementById('excludedNote');
-  const countEl = document.getElementById('excludedCount');
-  if (excludedStrategies.size > 0) {
-    note.style.display = 'inline';
-    countEl.textContent = excludedStrategies.size;
-  } else {
-    note.style.display = 'none';
-  }
+  document.getElementById('excludedCount').textContent = excludedStrategies.size;
+  note.style.display = excludedStrategies.size > 0 ? 'inline' : 'none';
 }
 
 function excludeAllOutliers() {
   document.querySelectorAll('#outlierBody .exclude-check').forEach(cb => {
     const rid = cb.dataset.rid;
     excludedStrategies.add(rid);
-    cb.checked = true;
     document.querySelectorAll(`.exclude-check[data-rid="${rid}"]`).forEach(c => c.checked = true);
-    const capRow = document.getElementById(`caprow_${rid}`);
-    if (capRow) capRow.classList.add('excluded-row');
+    const r = document.getElementById(`caprow_${rid}`);
+    if (r) r.classList.add('excluded-row');
   });
   updateExcludedNote();
 }
@@ -1057,52 +899,48 @@ function includeAllOutliers() {
   document.querySelectorAll('#outlierBody .exclude-check').forEach(cb => {
     const rid = cb.dataset.rid;
     excludedStrategies.delete(rid);
-    cb.checked = false;
     document.querySelectorAll(`.exclude-check[data-rid="${rid}"]`).forEach(c => c.checked = false);
-    const capRow = document.getElementById(`caprow_${rid}`);
-    if (capRow) capRow.classList.remove('excluded-row');
+    const r = document.getElementById(`caprow_${rid}`);
+    if (r) r.classList.remove('excluded-row');
   });
   updateExcludedNote();
 }
 
 // ─── SCORECARD TOGGLE ────────────────────────────────────────────
 function toggleScorecard() {
-  const body = document.getElementById('scorecardBody');
-  const chevron = document.getElementById('scChevron');
-  body.classList.toggle('open');
-  chevron.classList.toggle('open');
+  document.getElementById('scorecardBody').classList.toggle('open');
+  document.getElementById('scChevron').classList.toggle('open');
 }
 
 // ─── APPLY ───────────────────────────────────────────────────────
 async function applyChanges() {
   if (!analysisData) return;
   const includeWarn = document.getElementById('includeWarn').checked;
-  const customerId = document.getElementById('customerId').value.trim();
-
+  const cid  = document.getElementById('customerId').value.trim();
   const total = analysisData.summary.total_actionable;
   const excl  = excludedStrategies.size;
   const net   = total - excl;
 
-  if (net === 0) { alert('Keine Strategien zum Applyen (alle ausgeschlossen?)'); return; }
+  if (net === 0) { alert('Keine Strategien zum Applyen'); return; }
 
-  const confirmMsg = `${net} Cap${net !== 1 ? 's' : ''} applyen?`
+  const modeLabel = capMode === 'median' ? 'Median-CPC' : 'Avg-CPC';
+  const confirmMsg = `${net} Cap${net!==1?'s':''} applyen (${modeLabel})?`
     + (excl > 0 ? `\n(${excl} Ausreißer ausgeschlossen)` : '')
     + (includeWarn ? '\n+ WARN-Fälle' : '');
-
   if (!confirm(confirmMsg)) return;
 
   const btn = document.getElementById('applyBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Applying…';
+  btn.disabled = true; btn.textContent = '⏳ Applying…';
 
   try {
-    const res = await fetch('/api/apply', {
+    const res  = await fetch('/api/apply', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        customer_id: customerId,
-        include_warn: includeWarn,
-        excluded_resource_names: [...excludedStrategies]
+        customer_id:              cid,
+        include_warn:             includeWarn,
+        excluded_resource_names:  [...excludedStrategies],
+        cap_mode:                 capMode,
       })
     });
     const data = await res.json();
@@ -1111,84 +949,59 @@ async function applyChanges() {
     const box = document.getElementById('resultBox');
     document.getElementById('resultList').innerHTML = data.applied.map(a => `<li>✓ ${a}</li>`).join('');
     box.style.display = 'block';
-    box.scrollIntoView({ behavior: 'smooth' });
-
+    box.scrollIntoView({behavior:'smooth'});
     setTimeout(() => analyze(), 2000);
-  } catch (e) {
+  } catch(e) {
     showError('Apply fehlgeschlagen: ' + e.message);
   } finally {
-    btn.disabled = false;
-    btn.textContent = '✅ Apply Changes';
+    btn.disabled = false; btn.textContent = '✅ Apply Changes';
   }
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────
+// ─── SECTION TOGGLE ──────────────────────────────────────────────
 function toggleSection(id) {
-  const el = document.getElementById(id);
-  const toggle = el.previousElementSibling?.querySelector('.collapse-toggle')
-               || el.previousElementSibling;
-  if (el.style.display === 'none') {
-    el.style.display = 'block';
-    toggle?.classList.remove('collapsed');
-  } else {
-    el.style.display = 'none';
-    toggle?.classList.add('collapsed');
-  }
+  const el     = document.getElementById(id);
+  const toggle = el.previousElementSibling?.querySelector('.collapse-toggle') || el.previousElementSibling;
+  if (el.style.display === 'none') { el.style.display = 'block'; toggle?.classList.remove('collapsed'); }
+  else { el.style.display = 'none'; toggle?.classList.add('collapsed'); }
 }
-
-const urlParams = new URLSearchParams(window.location.search);
-const cidParam = urlParams.get('cid');
-if (cidParam) document.getElementById('customerId').value = cidParam;
 
 // ─── HOLIDAY MANAGEMENT ──────────────────────────────────────────
-
 async function openHolidays() {
   document.getElementById('holidayOverlay').classList.add('open');
   document.getElementById('holidaySaveMsg').style.display = 'none';
   try {
-    const res = await fetch('/api/holidays');
+    const res  = await fetch('/api/holidays');
     const data = await res.json();
     renderHolidayList(data.periods || []);
-  } catch (e) {
-    renderHolidayList([]);
-  }
+  } catch(e) { renderHolidayList([]); }
 }
 
-function closeHolidays() {
-  document.getElementById('holidayOverlay').classList.remove('open');
-}
-
-function overlayClick(e) {
-  if (e.target === e.currentTarget) closeHolidays();
-}
+function closeHolidays() { document.getElementById('holidayOverlay').classList.remove('open'); }
+function overlayClick(e) { if (e.target === e.currentTarget) closeHolidays(); }
 
 function renderHolidayList(periods) {
   const list = document.getElementById('holidayList');
   if (!periods.length) {
-    list.innerHTML = `<p style="color:var(--muted);font-size:12px;text-align:center;
-                                padding:16px 0">Noch keine Perioden — unten hinzufügen</p>`;
+    list.innerHTML = `<p style="color:var(--muted);font-size:12px;text-align:center;padding:16px 0">Noch keine Perioden</p>`;
     return;
   }
-  list.innerHTML = periods.map((p, i) => `
+  list.innerHTML = periods.map((p,i) => `
     <div class="holiday-row" id="hrow_${i}">
-      <input class="holiday-input" value="${p.name}" placeholder="z.B. Ostern"
-             data-field="name" data-i="${i}">
-      <input class="holiday-input" type="date" value="${p.start}"
-             data-field="start" data-i="${i}">
-      <input class="holiday-input" type="date" value="${p.end}"
-             data-field="end" data-i="${i}">
+      <input class="holiday-input" value="${p.name}" placeholder="z.B. Ostern" data-field="name" data-i="${i}">
+      <input class="holiday-input" type="date" value="${p.start}" data-field="start" data-i="${i}">
+      <input class="holiday-input" type="date" value="${p.end}"   data-field="end"   data-i="${i}">
       <button class="btn-del" onclick="removeHolidayRow(${i})">✕</button>
     </div>
   `).join('');
 }
 
 function getHolidayRows() {
-  const rows = [];
-  let i = 0;
+  const rows = []; let i = 0;
   while (document.getElementById(`hrow_${i}`)) {
-    const row = document.getElementById(`hrow_${i}`);
+    const row    = document.getElementById(`hrow_${i}`);
     const inputs = row.querySelectorAll('input');
-    rows.push({ name: inputs[0].value.trim(), start: inputs[1].value, end: inputs[2].value });
+    rows.push({name: inputs[0].value.trim(), start: inputs[1].value, end: inputs[2].value});
     i++;
   }
   return rows;
@@ -1196,58 +1009,42 @@ function getHolidayRows() {
 
 function addHolidayRow() {
   const rows = getHolidayRows();
-  const yr = new Date().getFullYear() + 1;
-  rows.push({ name: '', start: `${yr}-01-01`, end: `${yr}-01-01` });
+  const yr   = new Date().getFullYear() + 1;
+  rows.push({name:'', start:`${yr}-01-01`, end:`${yr}-01-01`});
   renderHolidayList(rows);
-  // Fokus auf neues Namensfeld
-  const last = document.querySelector(`#hrow_${rows.length - 1} input`);
-  if (last) last.focus();
+  document.querySelector(`#hrow_${rows.length-1} input`)?.focus();
 }
 
 function removeHolidayRow(i) {
-  const rows = getHolidayRows();
-  rows.splice(i, 1);
-  renderHolidayList(rows);
+  const rows = getHolidayRows(); rows.splice(i,1); renderHolidayList(rows);
 }
 
 async function saveHolidays() {
   const periods = getHolidayRows();
-  const msg = document.getElementById('holidaySaveMsg');
-
-  // Client-Validierung
   for (const p of periods) {
-    if (!p.name) { showSaveMsg('❌ Name fehlt in einer Periode', 'var(--red)'); return; }
-    if (!p.start || !p.end) { showSaveMsg('❌ Datum fehlt', 'var(--red)'); return; }
-    if (p.end < p.start) {
-      showSaveMsg(`❌ "${p.name}": End-Datum vor Start-Datum`, 'var(--red)'); return;
-    }
+    if (!p.name)           { showSaveMsg('❌ Name fehlt', 'var(--red)'); return; }
+    if (!p.start||!p.end)  { showSaveMsg('❌ Datum fehlt', 'var(--red)'); return; }
+    if (p.end < p.start)   { showSaveMsg(`❌ "${p.name}": Ende vor Start`, 'var(--red)'); return; }
   }
-
   try {
-    const res = await fetch('/api/holidays', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ year: new Date().getFullYear(), periods })
+    const res  = await fetch('/api/holidays', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({year: new Date().getFullYear(), periods})
     });
     const data = await res.json();
-    if (data.ok) {
-      showSaveMsg(`✅ ${data.count} Perioden gespeichert — aktiv ab nächster Analyse`, 'var(--green)');
-      setTimeout(closeHolidays, 1600);
-    } else {
-      showSaveMsg(`❌ ${data.error}`, 'var(--red)');
-    }
-  } catch (e) {
-    showSaveMsg(`❌ Netzwerkfehler: ${e.message}`, 'var(--red)');
-  }
+    if (data.ok) { showSaveMsg(`✅ ${data.count} Perioden gespeichert`, 'var(--green)'); setTimeout(closeHolidays, 1600); }
+    else           showSaveMsg(`❌ ${data.error}`, 'var(--red)');
+  } catch(e) { showSaveMsg(`❌ ${e.message}`, 'var(--red)'); }
 }
 
 function showSaveMsg(text, color) {
   const el = document.getElementById('holidaySaveMsg');
-  el.textContent = text;
-  el.style.color = color;
-  el.style.display = 'block';
+  el.textContent = text; el.style.color = color; el.style.display = 'block';
 }
-</script>
 
+// URL-Param
+const cid = new URLSearchParams(window.location.search).get('cid');
+if (cid) document.getElementById('customerId').value = cid;
+</script>
 </body>
 </html>
