@@ -168,6 +168,11 @@ class StrategyRow:
     median_weeks_used:       int          = 0    # wie viele Wochen flossen ein
     median_fallback:         bool         = False # True = zu wenig Daten, Fallback auf avg
 
+    # Asymmetrischer Modus: schnell rauf (avg), langsam runter (median)
+    new_cap_asym_micros:    Optional[int] = None # asym-basierter Cap
+    cap_delta_asym_micros:  int          = 0
+    asym_direction:         str          = ""    # "up(avg)" | "down(median)" | "neutral"
+
     bucket: str = "SKIP"
     reason: str = ""
     recommendation: str = ""
@@ -609,17 +614,40 @@ def classify_and_compute(strategies, metrics, budget_recs, cpc_history):
         warn    = (s.clicks_14d_normalized == 14) or (s.clicks_30d_normalized == 29)
 
         def set_cap(avg_basis: int):
-            """Setzt beide Cap-Varianten: avg-basiert und median-basiert."""
+            """Setzt alle drei Cap-Varianten: avg, median und asymmetrisch."""
+            current = s.current_cap_micros or 0
+
+            # ── Avg ──
             s.new_cap_micros   = compute_new_cap_plus10(avg_basis)
-            s.cap_delta_micros = s.new_cap_micros - (s.current_cap_micros or 0)
+            s.cap_delta_micros = s.new_cap_micros - current
             if s.new_cap_micros > MAX_CAP_WARNING_MICROS:
                 s.reason += f" | ⚠️ avg cap > {MAX_CAP_WARNING_EUR:.2f}€"
 
+            # ── Median ──
             if s.median_cpc_micros > 0:
                 s.new_cap_median_micros   = compute_new_cap_plus10(s.median_cpc_micros)
-                s.cap_delta_median_micros = s.new_cap_median_micros - (s.current_cap_micros or 0)
+                s.cap_delta_median_micros = s.new_cap_median_micros - current
                 if s.new_cap_median_micros > MAX_CAP_WARNING_MICROS:
                     s.reason += f" | ⚠️ median cap > {MAX_CAP_WARNING_EUR:.2f}€"
+
+            # ── Asymmetrisch: schnell rauf (avg), langsam runter (median) ──
+            cap_avg    = s.new_cap_micros
+            cap_median = s.new_cap_median_micros or cap_avg
+
+            if cap_avg > current:
+                # Erhöhung → sofort auf avg reagieren
+                s.new_cap_asym_micros   = cap_avg
+                s.asym_direction        = "up(avg)"
+            elif cap_median < current:
+                # Senkung → nur wenn Median dauerhaft darunter liegt
+                s.new_cap_asym_micros   = cap_median
+                s.asym_direction        = "down(median)"
+            else:
+                # Kein Handlungsbedarf — avg als Referenz behalten
+                s.new_cap_asym_micros   = cap_avg
+                s.asym_direction        = "neutral"
+
+            s.cap_delta_asym_micros = (s.new_cap_asym_micros or 0) - current
 
         # ── Bucket-Klassifizierung (unverändert) ──
 
@@ -721,8 +749,9 @@ def classify_and_compute(strategies, metrics, budget_recs, cpc_history):
 def apply_updates(client, customer_id, strategies: List[StrategyRow],
                   cap_mode: str = "avg") -> List[str]:
     """
-    cap_mode: "avg"    → new_cap_micros (avg-basiert)
-              "median" → new_cap_median_micros (median-basiert, Fallback auf avg)
+    cap_mode: "avg"    → new_cap_micros
+              "median" → new_cap_median_micros (Fallback auf avg)
+              "asym"   → new_cap_asym_micros (schnell rauf/langsam runter)
     """
     service = client.get_service("BiddingStrategyService")
     ops, applied = [], []
@@ -730,6 +759,8 @@ def apply_updates(client, customer_id, strategies: List[StrategyRow],
     for s in strategies:
         if cap_mode == "median" and s.new_cap_median_micros is not None:
             new_cap = s.new_cap_median_micros
+        elif cap_mode == "asym" and s.new_cap_asym_micros is not None:
+            new_cap = s.new_cap_asym_micros
         else:
             new_cap = s.new_cap_micros
 
@@ -746,7 +777,14 @@ def apply_updates(client, customer_id, strategies: List[StrategyRow],
         op.update.target_spend.cpc_bid_ceiling_micros = new_cap
         client.copy_from(op.update_mask, FieldMask(paths=["target_spend.cpc_bid_ceiling_micros"]))
         ops.append(op)
-        mode_label = "median" if cap_mode == "median" and not s.median_fallback else "avg"
+
+        if cap_mode == "asym":
+            mode_label = s.asym_direction or "asym"
+        elif cap_mode == "median" and not s.median_fallback:
+            mode_label = "median"
+        else:
+            mode_label = "avg"
+
         applied.append(
             f"{s.name}: {micros_to_str(s.current_cap_micros)}€ → {micros_to_str(new_cap)}€ [{mode_label}]"
         )
@@ -794,19 +832,24 @@ def run_analysis(customer_id: str) -> dict:
         key=lambda s: s.score, reverse=True
     )
 
-    # Summaries für beide Modi
+    # Summaries für alle drei Modi
     def delta_sum(mode: str):
         increases = decreases = 0
         inc_count = dec_count = 0
         for s in actionable:
-            d = s.cap_delta_median_micros if mode == "median" and not s.median_fallback \
-                else s.cap_delta_micros
+            if mode == "median" and not s.median_fallback:
+                d = s.cap_delta_median_micros
+            elif mode == "asym":
+                d = s.cap_delta_asym_micros
+            else:
+                d = s.cap_delta_micros
             if d > 0: increases += d; inc_count += 1
             elif d < 0: decreases += d; dec_count += 1
         return increases, decreases, inc_count, dec_count
 
-    avg_inc, avg_dec, avg_inc_c, avg_dec_c = delta_sum("avg")
-    med_inc, med_dec, med_inc_c, med_dec_c = delta_sum("median")
+    avg_inc,  avg_dec,  avg_inc_c,  avg_dec_c  = delta_sum("avg")
+    med_inc,  med_dec,  med_inc_c,  med_dec_c  = delta_sum("median")
+    asym_inc, asym_dec, asym_inc_c, asym_dec_c = delta_sum("asym")
 
     # Budget Health
     def rank_pct(val): return f"{round(val * 100, 1)}%"
@@ -915,6 +958,12 @@ def run_analysis(customer_id: str) -> dict:
             "median_net_delta_eur": round((med_inc + med_dec) / 1_000_000, 2),
             "median_increases_count": med_inc_c,
             "median_decreases_count": med_dec_c,
+            # Asymmetrischer Modus
+            "asym_increases_eur":   round(asym_inc / 1_000_000, 2),
+            "asym_decreases_eur":   round(asym_dec / 1_000_000, 2),
+            "asym_net_delta_eur":   round((asym_inc + asym_dec) / 1_000_000, 2),
+            "asym_increases_count": asym_inc_c,
+            "asym_decreases_count": asym_dec_c,
             "skip_total":           len(skips),
             "skip_no_campaigns":    sum(1 for s in skips if s.enabled_campaigns <= 0),
             "skip_no_data":         sum(1 for s in skips if s.enabled_campaigns > 0 and s.clicks_30d == 0),
