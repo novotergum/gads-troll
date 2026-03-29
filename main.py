@@ -1028,6 +1028,100 @@ async def save_holidays(payload: dict):
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
+# ============================
+# SNAPSHOT API
+# ============================
+
+SNAPSHOTS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "snapshots.json")
+
+
+def load_snapshots() -> list:
+    try:
+        with open(SNAPSHOTS_PATH) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
+
+
+@app.post("/api/snapshot")
+async def save_snapshot(payload: dict):
+    customer_id = payload.get("customer_id", CUSTOMER_ID).replace("-", "")
+    cap_mode    = payload.get("cap_mode", "avg")
+    label       = payload.get("label", "").strip()  # z.B. "vor Apply", "nach Apply"
+
+    try:
+        client      = get_client()
+        strategies  = fetch_strategies(client, customer_id)
+        fetch_enabled_campaign_counts(client, customer_id, strategies)
+        metrics     = fetch_metrics_aggregated(client, customer_id)
+        budget_recs = fetch_budget_recommendations(client, customer_id)
+        cpc_history = fetch_cpc_history(client, customer_id)
+        classify_and_compute(strategies, metrics, budget_recs, cpc_history)
+
+        snapshot = {
+            "ts":          date.today().isoformat(),
+            "cap_mode":    cap_mode,
+            "label":       label or date.today().isoformat(),
+            "data": [
+                {
+                    "name":           s.name,
+                    "resource_name":  s.resource_name,
+                    "bucket":         s.bucket,
+                    "rank_lost_is":   round(s.rank_lost_is_30d,   4),
+                    "budget_lost_is": round(s.budget_lost_is_30d, 4),
+                    "current_cap":    s.current_cap_micros,
+                    "avg_cpc_30d":    s.avg_cpc_30d_micros,
+                    "median_cpc":     s.median_cpc_micros,
+                    "clicks_30d":     s.clicks_30d,
+                    "score":          round(s.score, 2),
+                }
+                for s in strategies.values()
+                if s.enabled_campaigns > 0
+            ]
+        }
+
+        existing = load_snapshots()
+        existing.append(snapshot)
+        existing = existing[-52:]  # max 1 Jahr wöchentlich
+
+        with open(SNAPSHOTS_PATH, "w", encoding="utf-8") as f:
+            json.dump(existing, f, indent=2, ensure_ascii=False)
+
+        return JSONResponse({
+            "ok":    True,
+            "ts":    snapshot["ts"],
+            "label": snapshot["label"],
+            "count": len(snapshot["data"]),
+        })
+
+    except GoogleAdsException as ex:
+        errors = [{"code": str(e.error_code), "message": e.message} for e in ex.failure.errors]
+        return JSONResponse({"error": "Google Ads API error", "details": errors}, status_code=500)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/snapshots")
+async def get_snapshots():
+    return JSONResponse(load_snapshots())
+
+
+@app.delete("/api/snapshots/{index}")
+async def delete_snapshot(index: int):
+    try:
+        existing = load_snapshots()
+        if index < 0 or index >= len(existing):
+            return JSONResponse({"error": "Index out of range"}, status_code=400)
+        removed = existing.pop(index)
+        with open(SNAPSHOTS_PATH, "w", encoding="utf-8") as f:
+            json.dump(existing, f, indent=2, ensure_ascii=False)
+        return JSONResponse({"ok": True, "removed": removed["label"]})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
