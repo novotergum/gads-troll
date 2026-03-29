@@ -827,16 +827,28 @@ def run_analysis(customer_id: str) -> dict:
     actionable = sorted(
         [s for s in strategies.values()
          if s.bucket in ("NEAR30_READY", "READY", "LOWVOL_READY", "LOWVOL_DECREASE")
-         and s.new_cap_micros is not None
-         and s.new_cap_micros != s.current_cap_micros],
+         and s.new_cap_micros is not None],
         key=lambda s: s.score, reverse=True
     )
 
+    # Asym-spezifische actionable Liste: nur Strategien wo asym_cap != current
+    actionable_asym = [
+        s for s in actionable
+        if s.new_cap_asym_micros is not None
+        and s.new_cap_asym_micros != s.current_cap_micros
+    ]
+    # Avg actionable: nur wo avg_cap != current
+    actionable_avg = [
+        s for s in actionable
+        if s.new_cap_micros != s.current_cap_micros
+    ]
+
     # Summaries für alle drei Modi
     def delta_sum(mode: str):
+        src = actionable_asym if mode == 'asym' else actionable_avg if mode == 'avg' else actionable
         increases = decreases = 0
         inc_count = dec_count = 0
-        for s in actionable:
+        for s in src:
             if mode == "median" and not s.median_fallback:
                 d = s.cap_delta_median_micros
             elif mode == "asym":
@@ -941,7 +953,9 @@ def run_analysis(customer_id: str) -> dict:
         "buckets":     buckets,
         "debug_cap_statuses": list(cap_status.get("_debug_all_statuses", [])),
         "summary": {
-            "total_actionable":    len(actionable),
+            "total_actionable":    len(actionable_avg),
+            "asym_actionable":     len(actionable_asym),
+            "median_actionable":   len([s for s in actionable if s.new_cap_median_micros is not None and s.new_cap_median_micros != s.current_cap_micros]),
             # Avg-Modus
             "total_increases_eur": round(avg_inc / 1_000_000, 2),
             "total_decreases_eur": round(avg_dec / 1_000_000, 2),
@@ -950,7 +964,7 @@ def run_analysis(customer_id: str) -> dict:
             "decreases_count":     avg_dec_c,
             "weighted_delta_eur":  round(
                 sum(s.cap_delta_micros * s.enabled_campaigns
-                    for s in actionable if s.cap_delta_micros > 0) / 1_000_000, 2
+                    for s in actionable_avg if s.cap_delta_micros > 0) / 1_000_000, 2
             ),
             # Median-Modus
             "median_increases_eur": round(med_inc / 1_000_000, 2),
@@ -1030,13 +1044,25 @@ async def apply(payload: dict):
 
         to_apply = [
             s for s in strategies.values()
-            if s.bucket in buckets_to_apply and s.resource_name not in excluded
+            if s.bucket in buckets_to_apply
+            and s.resource_name not in excluded
+            and (
+                # In asym mode: include if asym cap differs from current
+                (cap_mode == "asym"   and s.new_cap_asym_micros   is not None and s.new_cap_asym_micros   != s.current_cap_micros) or
+                (cap_mode == "median" and s.new_cap_median_micros is not None and s.new_cap_median_micros != s.current_cap_micros) or
+                (cap_mode == "avg"    and s.new_cap_micros        is not None and s.new_cap_micros        != s.current_cap_micros)
+            )
         ]
         if include_warn:
             to_apply += [
                 s for s in strategies.values()
-                if s.bucket == "WARN" and s.new_cap_micros is not None
+                if s.bucket == "WARN"
                 and s.resource_name not in excluded
+                and (
+                    (cap_mode == "asym"   and s.new_cap_asym_micros   is not None and s.new_cap_asym_micros   != s.current_cap_micros) or
+                    (cap_mode == "median" and s.new_cap_median_micros is not None and s.new_cap_median_micros != s.current_cap_micros) or
+                    (cap_mode == "avg"    and s.new_cap_micros        is not None and s.new_cap_micros        != s.current_cap_micros)
+                )
             ]
 
         applied = apply_updates(client, customer_id, to_apply, cap_mode=cap_mode)
