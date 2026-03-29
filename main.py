@@ -8,9 +8,10 @@ FastAPI Web-App für Railway Deployment
 import os
 import json
 from dataclasses import dataclass, field, asdict
+from datetime import date, timedelta
 from typing import Dict, List, Optional, Tuple
 
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -34,6 +35,68 @@ NEAR15_NODECREASE_MIN = 12
 NEAR15_NODECREASE_MAX = 14
 MAX_CAP_WARNING_EUR = 6.00
 MAX_CAP_WARNING_MICROS = int(MAX_CAP_WARNING_EUR * 1_000_000)
+
+# ============================
+# HOLIDAY CONFIG
+# ============================
+
+HOLIDAYS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "holidays.json")
+
+
+def load_holiday_periods() -> List[Tuple[date, date, str]]:
+    """Lädt Urlaubsperioden aus holidays.json. Kein File = kein Crash."""
+    try:
+        with open(HOLIDAYS_PATH) as f:
+            data = json.load(f)
+        return [
+            (date.fromisoformat(p["start"]),
+             date.fromisoformat(p["end"]),
+             p["name"])
+            for p in data.get("periods", [])
+        ]
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
+
+
+# Einmal beim App-Start laden; wird bei POST /api/holidays neu geladen
+HOLIDAY_PERIODS: List[Tuple[date, date, str]] = load_holiday_periods()
+
+
+def count_holiday_days(period_days: int) -> Tuple[int, List[str]]:
+    """
+    Zählt wie viele der letzten `period_days` Tage in einer Urlaubsperiode liegen.
+    Gibt (anzahl_tage, liste_betroffener_perioden) zurück.
+    """
+    today = date.today()
+    start = today - timedelta(days=period_days)
+    holiday_count = 0
+    affected: set = set()
+
+    for n in range(period_days):
+        check = start + timedelta(days=n)
+        for h_start, h_end, h_name in HOLIDAY_PERIODS:
+            if h_start <= check <= h_end:
+                holiday_count += 1
+                affected.add(h_name)
+                break
+
+    return holiday_count, sorted(affected)
+
+
+def normalize_clicks(clicks: int, period_days: int, holiday_days: int) -> int:
+    """
+    Rechnet Klicks auf eine Vollperiode ohne Urlaubstage hoch.
+    Beispiel: 8 Klicks in 14 Tagen mit 5 Urlaubstagen
+              → effektiv 9 Arbeitstage
+              → normalisiert: int(8 * 14/9) = 12
+    """
+    if holiday_days <= 0:
+        return clicks
+    effective = max(1, period_days - holiday_days)
+    return int(clicks * (period_days / effective))
+
 
 # ============================
 # DATA STRUCTURES
@@ -66,7 +129,7 @@ class StrategyRow:
     impressions_30d: int = 0
     lost_impressions_budget: int = 0
 
-    # Cap-limitierte Kampagnen (system_status)
+    # Cap-limitierte Kampagnen
     cap_limited_campaigns: int = 0
     budget_limited_campaigns: int = 0
 
@@ -86,6 +149,11 @@ class StrategyRow:
     # Prioritäts-Score
     click_opportunity: float = 0.0
     score: float = 0.0
+
+    # Holiday-Normalisierung
+    clicks_14d_normalized: int = 0
+    clicks_30d_normalized: int = 0
+    holiday_normalized: bool = False
 
 
 @dataclass
@@ -130,7 +198,6 @@ class MetricsAccumulator:
 # ============================
 
 def get_client() -> GoogleAdsClient:
-    """Baut GoogleAdsClient aus Environment Variables."""
     config = {
         "developer_token": os.environ["GOOGLE_ADS_DEVELOPER_TOKEN"],
         "client_id": os.environ["GOOGLE_ADS_CLIENT_ID"],
@@ -283,7 +350,6 @@ def fetch_enabled_campaign_counts(client, customer_id, strategies):
     for r in search(client, customer_id, q):
         rn = r.campaign.bidding_strategy
         counts[rn] = counts.get(rn, 0) + 1
-
     for s in strategies.values():
         s.enabled_campaigns = counts.get(s.resource_name, 0)
 
@@ -299,7 +365,6 @@ def fetch_metrics_aggregated(client, customer_id) -> Dict[str, Dict[str, dict]]:
                 accumulators[rn] = {}
             if key not in accumulators[rn]:
                 accumulators[rn][key] = MetricsAccumulator()
-
             accumulators[rn][key].add(
                 clicks=safe_int(r.metrics.clicks),
                 avg_cpc=safe_int(r.metrics.average_cpc),
@@ -322,7 +387,6 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
         "PAUSED",
         "2", "3", "4", "5", "6",
     }
-
     result: Dict[str, dict] = {}
     all_statuses_seen = set()
 
@@ -331,24 +395,16 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
             rn = r.campaign.bidding_strategy
             if not rn:
                 continue
-
             raw_status = r.campaign.bidding_strategy_system_status
             status_int = int(raw_status) if raw_status is not None else 0
-            status_str = str(raw_status)
-            status_name = status_str.split(".")[-1].strip()
+            status_name = str(raw_status).split(".")[-1].strip()
             all_statuses_seen.add(f"{status_int}:{status_name}")
-
             budget_lost = safe_float(r.metrics.search_budget_lost_impression_share)
             camp_name = r.campaign.name
 
             if rn not in result:
-                result[rn] = {
-                    "cap_limited": 0,
-                    "budget_limited": 0,
-                    "total": 0,
-                    "campaigns": [],
-                    "debug_statuses": [],
-                }
+                result[rn] = {"cap_limited": 0, "budget_limited": 0,
+                               "total": 0, "campaigns": [], "debug_statuses": []}
 
             result[rn]["total"] += 1
             result[rn]["debug_statuses"].append(f"{camp_name}:{status_int}:{status_name}")
@@ -400,8 +456,14 @@ def fetch_budget_recommendations(client, customer_id) -> Dict[str, dict]:
 # ============================
 
 def classify_and_compute(strategies, metrics, budget_recs):
+    # Holiday-Normalisierung einmal für alle berechnen
+    holidays_14d, affected_14d = count_holiday_days(14)
+    holidays_30d, affected_30d = count_holiday_days(30)
+    normalization_active = holidays_14d > 0 or holidays_30d > 0
+
     for rn, s in strategies.items():
 
+        # Health metrics
         m30 = metrics.get(rn, {}).get("30d", {})
         s.budget_lost_is_30d = m30.get("budget_lost_is", 0.0)
         s.rank_lost_is_30d = m30.get("rank_lost_is", 0.0)
@@ -428,19 +490,29 @@ def classify_and_compute(strategies, metrics, budget_recs):
             continue
 
         m = metrics.get(rn, {})
-        s.clicks_7d = m.get("7d", {}).get("clicks", 0)
+        s.clicks_7d  = m.get("7d",  {}).get("clicks", 0)
         s.clicks_14d = m.get("14d", {}).get("clicks", 0)
         s.clicks_30d = m.get("30d", {}).get("clicks", 0)
-        s.avg_cpc_7d_micros = m.get("7d", {}).get("avg_cpc", 0)
+        s.avg_cpc_7d_micros  = m.get("7d",  {}).get("avg_cpc", 0)
         s.avg_cpc_14d_micros = m.get("14d", {}).get("avg_cpc", 0)
         s.avg_cpc_30d_micros = m.get("30d", {}).get("avg_cpc", 0)
-        s.ctr_7d = m.get("7d", {}).get("ctr", 0.0)
+        s.ctr_7d  = m.get("7d",  {}).get("ctr", 0.0)
         s.ctr_14d = m.get("14d", {}).get("ctr", 0.0)
         s.ctr_30d = m.get("30d", {}).get("ctr", 0.0)
 
-        gate_14 = s.clicks_14d >= 15
-        gate_30 = s.clicks_30d >= 30
-        warn = (s.clicks_14d == 14) or (s.clicks_30d == 29)
+        # ── Holiday-Normalisierung der Klick-Gates ──
+        # Rohe Klicks bleiben erhalten (für CPC-Berechnung und Anzeige),
+        # normalisierte Werte nur für Gate-Entscheidung verwenden.
+        s.clicks_14d_normalized = normalize_clicks(s.clicks_14d, 14, holidays_14d)
+        s.clicks_30d_normalized = normalize_clicks(s.clicks_30d, 30, holidays_30d)
+        s.holiday_normalized = normalization_active and (
+            s.clicks_14d_normalized != s.clicks_14d
+            or s.clicks_30d_normalized != s.clicks_30d
+        )
+
+        gate_14 = s.clicks_14d_normalized >= 15
+        gate_30 = s.clicks_30d_normalized >= 30
+        warn = (s.clicks_14d_normalized == 14) or (s.clicks_30d_normalized == 29)
 
         def set_cap(new_cap):
             s.new_cap_micros = new_cap
@@ -449,14 +521,15 @@ def classify_and_compute(strategies, metrics, budget_recs):
                 s.reason += f" | ⚠️ new cap > {MAX_CAP_WARNING_EUR:.2f}€"
 
         # NEAR30_READY
-        if gate_14 and (NEAR30_MIN <= s.clicks_30d <= NEAR30_MAX) and s.avg_cpc_30d_micros > 0:
+        if gate_14 and (NEAR30_MIN <= s.clicks_30d_normalized <= NEAR30_MAX) and s.avg_cpc_30d_micros > 0:
             s.bucket = "NEAR30_READY"
             s.basis_window = "near30(30d)"
             s.basis_avg_cpc_micros = s.avg_cpc_30d_micros
-            s.reason = f"clicks30={s.clicks_30d} near 30, 30d avgCPC +10%"
+            s.reason = f"clicks30={s.clicks_30d_normalized} near 30, 30d avgCPC +10%"
+            if s.holiday_normalized:
+                s.reason += f" [norm: {s.clicks_30d}→{s.clicks_30d_normalized}]"
             set_cap(compute_new_cap_plus10(s.basis_avg_cpc_micros))
-            if not apply_no_decrease_near15_rule(s):
-                pass
+            apply_no_decrease_near15_rule(s)
             continue
 
         # READY
@@ -475,6 +548,8 @@ def classify_and_compute(strategies, metrics, budget_recs):
             s.basis_window = "14d+30d(min)" if len(candidates) == 2 else chosen_window
             s.basis_avg_cpc_micros = chosen_cpc
             s.reason = f"basis={s.basis_window}, +10%"
+            if s.holiday_normalized:
+                s.reason += f" [norm: 14d {s.clicks_14d}→{s.clicks_14d_normalized}, 30d {s.clicks_30d}→{s.clicks_30d_normalized}]"
             set_cap(compute_new_cap_plus10(s.basis_avg_cpc_micros))
             apply_no_decrease_near15_rule(s)
             continue
@@ -483,10 +558,12 @@ def classify_and_compute(strategies, metrics, budget_recs):
         if warn:
             s.bucket = "WARN"
             s.reason = "near threshold (override possible)"
+            if s.holiday_normalized:
+                s.reason += f" [norm: 14d {s.clicks_14d}→{s.clicks_14d_normalized}]"
             candidates = []
-            if s.clicks_14d == 14 and s.avg_cpc_14d_micros > 0:
+            if s.clicks_14d_normalized == 14 and s.avg_cpc_14d_micros > 0:
                 candidates.append(("14d", s.avg_cpc_14d_micros))
-            if s.clicks_30d == 29 and s.avg_cpc_30d_micros > 0:
+            if s.clicks_30d_normalized == 29 and s.avg_cpc_30d_micros > 0:
                 candidates.append(("30d", s.avg_cpc_30d_micros))
             if candidates:
                 chosen_window, chosen_cpc = sorted(candidates, key=lambda x: x[1])[0]
@@ -497,7 +574,7 @@ def classify_and_compute(strategies, metrics, budget_recs):
             continue
 
         # LOWVOL_READY
-        if s.clicks_14d < 15 and s.clicks_30d < 30 and s.ctr_30d > s.ctr_14d:
+        if s.clicks_14d_normalized < 15 and s.clicks_30d_normalized < 30 and s.ctr_30d > s.ctr_14d:
             s.bucket = "LOWVOL_READY"
             basis_cpc = s.avg_cpc_30d_micros if s.avg_cpc_30d_micros > 0 else s.avg_cpc_14d_micros
             if not basis_cpc:
@@ -512,7 +589,7 @@ def classify_and_compute(strategies, metrics, budget_recs):
             continue
 
         # LOWVOL_DECREASE
-        if s.clicks_14d < 15 and s.clicks_30d < 30:
+        if s.clicks_14d_normalized < 15 and s.clicks_30d_normalized < 30:
             if s.avg_cpc_30d_micros > 0 and s.avg_cpc_14d_micros > 0:
                 if s.avg_cpc_30d_micros > s.avg_cpc_14d_micros:
                     target = compute_new_cap_plus10(s.avg_cpc_30d_micros)
@@ -531,10 +608,11 @@ def classify_and_compute(strategies, metrics, budget_recs):
 
     # Score berechnen
     for rn, s in strategies.items():
-        if s.clicks_30d > 0 and s.rank_lost_is_30d > 0:
-            s.click_opportunity = s.clicks_30d * s.rank_lost_is_30d
-        else:
-            s.click_opportunity = 0.0
+        s.click_opportunity = (
+            s.clicks_30d * s.rank_lost_is_30d
+            if s.clicks_30d > 0 and s.rank_lost_is_30d > 0
+            else 0.0
+        )
         confidence = min(1.0, s.clicks_30d / 50)
         s.score = s.click_opportunity * confidence
 
@@ -591,13 +669,11 @@ def run_analysis(customer_id: str) -> dict:
         s.cap_limited_campaigns = cs.get("cap_limited", 0)
         s.budget_limited_campaigns = cs.get("budget_limited", 0)
 
-    # Buckets aufteilen
     buckets = {"NEAR30_READY": [], "READY": [], "LOWVOL_READY": [],
                "LOWVOL_DECREASE": [], "WARN": [], "SKIP": []}
     for s in strategies.values():
         buckets[s.bucket].append(asdict(s))
 
-    # Delta-Zusammenfassung
     actionable = sorted(
         [s for s in strategies.values()
          if s.bucket in ("NEAR30_READY", "READY", "LOWVOL_READY", "LOWVOL_DECREASE")
@@ -610,41 +686,29 @@ def run_analysis(customer_id: str) -> dict:
     total_increases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros > 0)
     total_decreases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros < 0)
     net_delta = total_increases + total_decreases
-
     weighted_delta = sum(
         s.cap_delta_micros * s.enabled_campaigns
-        for s in actionable
-        if s.cap_delta_micros > 0
+        for s in actionable if s.cap_delta_micros > 0
     )
 
     def rank_pct(val: float) -> str:
         return f"{round(val * 100, 1)}%"
 
     def get_action(s, cs):
-        cap_lim_api = cs.get("cap_limited", 0)
-        bud_lim = cs.get("budget_limited", 0)
-        total = cs.get("total", s.enabled_campaigns) or 1
-
-        rank_lost_pct = round(s.rank_lost_is_30d * 100, 1)
         rank_cap_signal = s.rank_lost_is_30d > 0.30 and s.enabled_campaigns > 0
         budget_signal = s.budget_lost_is_30d > 0.05
-        cap_lim = cap_lim_api
-
-        if cap_lim == 0 and not rank_cap_signal and not budget_signal:
+        if cs.get("cap_limited", 0) == 0 and not rank_cap_signal and not budget_signal:
             return None
 
         cap_already_optimal = (
-            s.new_cap_micros is not None
-            and s.current_cap_micros is not None
+            s.new_cap_micros is not None and s.current_cap_micros is not None
             and s.new_cap_micros == s.current_cap_micros
         )
         cap_increase_planned = (
-            s.new_cap_micros is not None
-            and s.current_cap_micros is not None
+            s.new_cap_micros is not None and s.current_cap_micros is not None
             and s.new_cap_micros > s.current_cap_micros
         )
         cap_skip = s.bucket == "SKIP"
-
         parts = []
 
         if rank_cap_signal and budget_signal:
@@ -667,8 +731,8 @@ def run_analysis(customer_id: str) -> dict:
             parts.append(f"💰 Budget erhöhen | IS Budget: {rank_pct(s.budget_lost_is_30d)}")
 
         if not parts and cs.get("cap_limited", 0) > 0:
+            cap_lim = cs["cap_limited"]
             total = cs.get("total", s.enabled_campaigns) or 1
-            cap_lim = cs.get("cap_limited", 0)
             if cap_already_optimal:
                 parts.append(f"✅ Cap optimiert ({cap_lim}/{total} Kamp.) — Google braucht ~24h")
             elif cap_increase_planned:
@@ -712,9 +776,10 @@ def run_analysis(customer_id: str) -> dict:
     budget_limited.sort(key=lambda x: x["score"], reverse=True)
 
     skips = [s for s in strategies.values() if s.bucket == "SKIP"]
-    skip_no_campaigns = sum(1 for s in skips if s.enabled_campaigns <= 0)
-    skip_no_data = sum(1 for s in skips if s.enabled_campaigns > 0 and s.clicks_30d == 0)
-    skip_low_data = sum(1 for s in skips if s.enabled_campaigns > 0 and 0 < s.clicks_30d < 30)
+
+    # Holiday-Info für Frontend aufbereiten
+    holidays_14d, affected_14d = count_holiday_days(14)
+    holidays_30d, affected_30d = count_holiday_days(30)
 
     return {
         "customer_id": customer_id,
@@ -729,11 +794,20 @@ def run_analysis(customer_id: str) -> dict:
             "decreases_count": sum(1 for s in actionable if s.cap_delta_micros < 0),
             "weighted_delta_eur": round(weighted_delta / 1_000_000, 2),
             "skip_total": len(skips),
-            "skip_no_campaigns": skip_no_campaigns,
-            "skip_no_data": skip_no_data,
-            "skip_low_data": skip_low_data,
+            "skip_no_campaigns": sum(1 for s in skips if s.enabled_campaigns <= 0),
+            "skip_no_data": sum(1 for s in skips if s.enabled_campaigns > 0 and s.clicks_30d == 0),
+            "skip_low_data": sum(1 for s in skips if s.enabled_campaigns > 0 and 0 < s.clicks_30d < 30),
         },
         "budget_limited": budget_limited,
+        "holiday_info": {
+            "holidays_in_14d": holidays_14d,
+            "holidays_in_30d": holidays_30d,
+            "affected_periods": sorted(set(affected_14d + affected_30d)),
+            "normalization_active": holidays_14d > 0 or holidays_30d > 0,
+            "normalized_strategies_count": sum(
+                1 for s in strategies.values() if s.holiday_normalized
+            ),
+        },
     }
 
 
@@ -769,7 +843,7 @@ async def apply(payload: dict):
     customer_id = payload.get("customer_id", CUSTOMER_ID).replace("-", "")
     buckets_to_apply = payload.get("buckets", ["NEAR30_READY", "READY", "LOWVOL_READY", "LOWVOL_DECREASE"])
     include_warn = payload.get("include_warn", False)
-    excluded = set(payload.get("excluded_resource_names", []))  # Ausreißer-Ausschluss
+    excluded = set(payload.get("excluded_resource_names", []))
 
     try:
         client = get_client()
@@ -801,6 +875,48 @@ async def apply(payload: dict):
         return JSONResponse({"error": "Google Ads API error", "details": errors}, status_code=500)
     except Exception as ex:
         return JSONResponse({"error": str(ex)}, status_code=500)
+
+
+# ============================
+# HOLIDAY API
+# ============================
+
+@app.get("/api/holidays")
+async def get_holidays():
+    try:
+        with open(HOLIDAYS_PATH) as f:
+            return JSONResponse(json.load(f))
+    except FileNotFoundError:
+        return JSONResponse({"year": date.today().year, "periods": []})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/holidays")
+async def save_holidays(payload: dict):
+    global HOLIDAY_PERIODS
+    try:
+        periods = payload.get("periods", [])
+        for p in periods:
+            if not p.get("name", "").strip():
+                raise ValueError("Name fehlt in einer Periode")
+            s = date.fromisoformat(p["start"])
+            e = date.fromisoformat(p["end"])
+            if e < s:
+                raise ValueError(f'"{p["name"]}": End-Datum liegt vor Start-Datum')
+
+        with open(HOLIDAYS_PATH, "w", encoding="utf-8") as f:
+            json.dump(
+                {"year": payload.get("year", date.today().year), "periods": periods},
+                f, indent=2, ensure_ascii=False
+            )
+
+        # Sofort neu laden — kein Railway-Restart nötig
+        HOLIDAY_PERIODS = load_holiday_periods()
+        return JSONResponse({"ok": True, "count": len(periods)})
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
 
 
 if __name__ == "__main__":
