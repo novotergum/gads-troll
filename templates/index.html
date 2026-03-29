@@ -647,6 +647,10 @@ function updateSummaryForMode() {
   const net  = capMode === 'median' ? s.median_net_delta_eur  : capMode === 'asym' ? (s.asym_net_delta_eur??0)  : s.net_delta_eur;
   const incC = capMode === 'median' ? s.median_increases_count: capMode === 'asym' ? (s.asym_increases_count??0): s.increases_count;
   const decC = capMode === 'median' ? s.median_decreases_count: capMode === 'asym' ? (s.asym_decreases_count??0): s.decreases_count;
+  const actionableCount =
+    capMode === 'asym'   ? (s.asym_actionable   ?? s.total_actionable) :
+    capMode === 'median' ? (s.median_actionable ?? s.total_actionable) :
+    s.total_actionable;
 
   document.getElementById('card-inc').textContent     = `+${inc.toFixed(2)}€`;
   document.getElementById('card-dec').textContent     = `${dec.toFixed(2)}€`;
@@ -654,6 +658,7 @@ function updateSummaryForMode() {
   document.getElementById('card-net').className       = 'card-value ' + (net >= 0 ? 'positive' : 'negative');
   document.getElementById('card-inc-sub').textContent = `${incC} Strategien`;
   document.getElementById('card-dec-sub').textContent = `${decC} Strategien`;
+  document.getElementById('applyCount').textContent   = actionableCount;
 }
 
 function refreshCapHighlight() {
@@ -824,7 +829,10 @@ function renderDashboard(data) {
     </div>
   `;
 
-  document.getElementById('applyCount').textContent = s.total_actionable;
+  document.getElementById('applyCount').textContent =
+    capMode === 'asym'   ? (s.asym_actionable   ?? s.total_actionable) :
+    capMode === 'median' ? (s.median_actionable ?? s.total_actionable) :
+    s.total_actionable;
 
   // Budget Health
   const bl = data.budget_limited;
