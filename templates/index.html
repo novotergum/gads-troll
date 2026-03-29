@@ -263,6 +263,26 @@
     background: #1e2330; border: 1px solid var(--border); padding: 6px 10px;
     border-radius: 6px; font-size: 11px; white-space: nowrap; color: var(--text); z-index: 999;
   }
+  /* ── Snapshot chips ── */
+  .snapshot-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--muted);
+  }
+  .snapshot-chip.active { border-color: var(--blue); color: var(--blue); background: rgba(59,130,246,0.1); }
+  .snapshot-chip-del {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 12px; padding: 0; line-height: 1;
+  }
+  .snapshot-chip-del:hover { color: var(--red); }
+
+  /* ── IS trend cells ── */
+  .is-good { color: var(--green); font-weight: 700; }
+  .is-warn { color: var(--red);   font-weight: 700; }
+  .is-neutral { color: var(--muted); }
+  .is-bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .is-bar-bg   { flex: 1; height: 5px; background: var(--border); border-radius: 3px; min-width: 50px; overflow: hidden; }
+  .is-bar-fill { height: 100%; border-radius: 3px; }
 </style>
 </head>
 <body>
@@ -352,6 +372,10 @@
         <label class="checkbox-label">
           <input type="checkbox" id="includeWarn"> WARN auch applyen
         </label>
+        <button class="btn" style="background:var(--surface2);color:var(--muted)"
+                onclick="openSnapshotModal()" title="IS-Loss Snapshot speichern">
+          📸 Snapshot
+        </button>
         <button class="btn btn-success" id="applyBtn" onclick="applyChanges()">✅ Apply Changes</button>
       </div>
     </div>
@@ -480,7 +504,72 @@
       </div>
     </div>
 
+    <!-- IS-Loss Trend -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title collapse-toggle collapsed" onclick="toggleSection('isTrend')">
+          📈 IS-Loss Verlauf
+          <span class="badge" id="snapshotCount">0 Snapshots</span>
+        </div>
+        <button class="btn" style="background:var(--surface2);color:var(--muted);font-size:11px;padding:5px 12px"
+                onclick="loadSnapshotPanel()">🔄 Aktualisieren</button>
+      </div>
+      <div class="collapsible" id="isTrend" style="display:none">
+
+        <!-- Snapshot list -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:11px;color:var(--muted)">Gespeicherte Snapshots:</span>
+          <div id="snapshotChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        </div>
+
+        <!-- Trend table -->
+        <div class="table-wrap" id="isTrendWrap">
+          <table id="isTrendTable">
+            <thead id="isTrendHead"></thead>
+            <tbody id="isTrendBody"></tbody>
+          </table>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px">
+          Nur Strategien mit IS-Loss &gt; 5% in mindestens einem Snapshot. ✅ = IS gesunken · ⚠️ = IS gestiegen · — = kein Vergleich
+        </p>
+
+      </div>
+    </div>
+
   </div><!-- /dashboard -->
+
+  <!-- Snapshot Modal -->
+  <div class="modal-overlay" id="snapshotOverlay" onclick="snapshotOverlayClick(event)">
+    <div class="modal-box" style="width:420px">
+      <div class="modal-header">
+        <div class="modal-title">📸 IS-Loss Snapshot</div>
+        <button class="modal-close" onclick="closeSnapshotModal()">✕</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Speichert den aktuellen IS-Loss aller Strategien als Vergleichspunkt.
+        Empfehlung: direkt vor und ~1 Woche nach einem Apply.
+      </p>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:6px">
+          Label (optional)
+        </label>
+        <input class="holiday-input" id="snapshotLabel"
+               placeholder="z.B. vor Apply Median-CPC" style="width:100%">
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:16px">
+        Modus: <strong id="snapshotModeLabel" style="color:var(--text)">Avg CPC</strong>
+        &nbsp;·&nbsp; Max. 52 Snapshots gespeichert (älteste werden überschrieben)
+      </div>
+      <div class="modal-footer">
+        <button class="btn" style="background:var(--surface2);color:var(--muted)"
+                onclick="closeSnapshotModal()">Abbrechen</button>
+        <button class="btn btn-primary" id="snapshotSaveBtn" onclick="saveSnapshot()">
+          📸 Snapshot speichern
+        </button>
+      </div>
+      <div class="save-msg" id="snapshotMsg"></div>
+    </div>
+  </div>
 
   <div class="placeholder" id="placeholder">
     <div class="placeholder-icon">📈</div>
@@ -962,8 +1051,11 @@ async function applyChanges() {
 function toggleSection(id) {
   const el     = document.getElementById(id);
   const toggle = el.previousElementSibling?.querySelector('.collapse-toggle') || el.previousElementSibling;
-  if (el.style.display === 'none') { el.style.display = 'block'; toggle?.classList.remove('collapsed'); }
-  else { el.style.display = 'none'; toggle?.classList.add('collapsed'); }
+  const opening = el.style.display === 'none';
+  if (opening) { el.style.display = 'block'; toggle?.classList.remove('collapsed'); }
+  else          { el.style.display = 'none';  toggle?.classList.add('collapsed'); }
+  // Auto-load snapshot panel when opened
+  if (id === 'isTrend' && opening) loadSnapshotPanel();
 }
 
 // ─── HOLIDAY MANAGEMENT ──────────────────────────────────────────
@@ -1040,6 +1132,192 @@ async function saveHolidays() {
 function showSaveMsg(text, color) {
   const el = document.getElementById('holidaySaveMsg');
   el.textContent = text; el.style.color = color; el.style.display = 'block';
+}
+
+// ─── SNAPSHOT MANAGEMENT ─────────────────────────────────────────
+
+let snapshotData = [];  // alle geladenen Snapshots
+
+function openSnapshotModal() {
+  document.getElementById('snapshotOverlay').classList.add('open');
+  document.getElementById('snapshotMsg').style.display = 'none';
+  document.getElementById('snapshotLabel').value = '';
+  document.getElementById('snapshotModeLabel').textContent =
+    capMode === 'median' ? 'Median CPC' : 'Avg CPC';
+}
+
+function closeSnapshotModal() {
+  document.getElementById('snapshotOverlay').classList.remove('open');
+}
+
+function snapshotOverlayClick(e) {
+  if (e.target === e.currentTarget) closeSnapshotModal();
+}
+
+async function saveSnapshot() {
+  const cid   = document.getElementById('customerId').value.trim();
+  const label = document.getElementById('snapshotLabel').value.trim();
+  const btn   = document.getElementById('snapshotSaveBtn');
+  btn.disabled = true; btn.textContent = '⏳ Speichert…';
+
+  try {
+    const res  = await fetch('/api/snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer_id: cid, cap_mode: capMode, label })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showSnapshotMsg(`✅ Snapshot "${data.label}" gespeichert (${data.count} Strategien)`, 'var(--green)');
+      setTimeout(() => { closeSnapshotModal(); loadSnapshotPanel(); }, 1500);
+    } else {
+      showSnapshotMsg(`❌ ${data.error}`, 'var(--red)');
+    }
+  } catch(e) {
+    showSnapshotMsg(`❌ ${e.message}`, 'var(--red)');
+  } finally {
+    btn.disabled = false; btn.textContent = '📸 Snapshot speichern';
+  }
+}
+
+function showSnapshotMsg(text, color) {
+  const el = document.getElementById('snapshotMsg');
+  el.textContent = text; el.style.color = color; el.style.display = 'block';
+}
+
+async function loadSnapshotPanel() {
+  try {
+    const res  = await fetch('/api/snapshots');
+    snapshotData = await res.json();
+  } catch(e) {
+    snapshotData = [];
+  }
+
+  document.getElementById('snapshotCount').textContent =
+    `${snapshotData.length} Snapshot${snapshotData.length !== 1 ? 's' : ''}`;
+
+  renderSnapshotChips();
+  renderISTrendTable();
+}
+
+function renderSnapshotChips() {
+  const wrap = document.getElementById('snapshotChips');
+  if (!snapshotData.length) {
+    wrap.innerHTML = '<span style="font-size:11px;color:var(--muted);font-style:italic">Noch keine Snapshots</span>';
+    return;
+  }
+  wrap.innerHTML = snapshotData.map((s, i) => `
+    <span class="snapshot-chip">
+      <span style="font-size:10px;color:var(--muted)">${s.ts}</span>
+      <span>${s.label}</span>
+      <span style="font-size:9px;background:${s.cap_mode==='median'?'rgba(139,92,246,0.2)':'rgba(59,130,246,0.2)'};
+                   color:${s.cap_mode==='median'?'var(--purple)':'var(--blue)'};
+                   padding:1px 5px;border-radius:3px">${s.cap_mode}</span>
+      <button class="snapshot-chip-del" onclick="deleteSnapshot(${i})" title="Löschen">✕</button>
+    </span>
+  `).join('');
+}
+
+async function deleteSnapshot(i) {
+  if (!confirm(`Snapshot "${snapshotData[i].label}" löschen?`)) return;
+  try {
+    const res  = await fetch(`/api/snapshots/${i}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) loadSnapshotPanel();
+    else alert(`Fehler: ${data.error}`);
+  } catch(e) { alert(e.message); }
+}
+
+function renderISTrendTable() {
+  if (!snapshotData.length) {
+    document.getElementById('isTrendBody').innerHTML =
+      '<tr class="empty-row"><td colspan="99">Noch keine Snapshots — oben auf 📸 Snapshot klicken</td></tr>';
+    document.getElementById('isTrendHead').innerHTML = '';
+    return;
+  }
+
+  // Alle Strategienamen sammeln die in mind. einem Snapshot IS-Loss > 5% hatten
+  const allNames = new Set();
+  snapshotData.forEach(snap => {
+    snap.data.forEach(d => {
+      if (d.rank_lost_is > 0.05 || d.budget_lost_is > 0.05) allNames.add(d.name);
+    });
+  });
+
+  if (!allNames.size) {
+    document.getElementById('isTrendBody').innerHTML =
+      '<tr class="empty-row"><td colspan="99">Keine Strategie mit IS-Loss &gt; 5% in den Snapshots</td></tr>';
+    return;
+  }
+
+  // Header
+  const snapCols = snapshotData.map((s, i) =>
+    `<th style="text-align:center;min-width:110px">
+      <div style="font-size:10px;color:var(--muted)">${s.ts}</div>
+      <div style="font-size:11px;color:var(--text)">${s.label}</div>
+      <div style="font-size:9px;color:${s.cap_mode==='median'?'var(--purple)':'var(--blue)'}">${s.cap_mode}</div>
+    </th>`
+  ).join('');
+  document.getElementById('isTrendHead').innerHTML =
+    `<tr><th>Strategie</th><th>Bucket</th>${snapCols}<th>Trend</th></tr>`;
+
+  // Rows
+  const rows = [...allNames].sort().map(name => {
+    const cells = snapshotData.map(snap => {
+      const d = snap.data.find(x => x.name === name);
+      if (!d) return '<td style="text-align:center;color:var(--muted)">—</td>';
+
+      const rankPct = (d.rank_lost_is   * 100).toFixed(1);
+      const budPct  = (d.budget_lost_is * 100).toFixed(1);
+      const total   = d.rank_lost_is + d.budget_lost_is;
+      const barColor = total > 0.6 ? '#ef4444' : total > 0.3 ? '#f59e0b' : '#22c55e';
+
+      return `<td style="text-align:center">
+        <div class="is-bar-wrap" style="justify-content:center">
+          <div style="text-align:right;min-width:32px;font-size:11px;font-family:'JetBrains Mono',monospace;
+                      color:${total>0.5?'#ef4444':total>0.3?'#f59e0b':'#8892a4'}">
+            ${rankPct}%
+          </div>
+          <div class="is-bar-bg">
+            <div class="is-bar-fill" style="width:${Math.min(100, total*100)}%;background:${barColor}"></div>
+          </div>
+        </div>
+        ${d.budget_lost_is > 0.05 ? `<div style="font-size:10px;color:#3b82f6">💰${budPct}%</div>` : ''}
+      </td>`;
+    });
+
+    // Trend: erster vs. letzter Snapshot
+    const vals = snapshotData
+      .map(snap => snap.data.find(x => x.name === name))
+      .filter(Boolean)
+      .map(d => d.rank_lost_is);
+
+    let trend = '<td style="text-align:center;color:var(--muted)">—</td>';
+    if (vals.length >= 2) {
+      const diff = vals[vals.length - 1] - vals[0];
+      const pct  = (Math.abs(diff) * 100).toFixed(1);
+      if (diff < -0.02)
+        trend = `<td style="text-align:center" class="is-good">✅ -${pct}%</td>`;
+      else if (diff > 0.02)
+        trend = `<td style="text-align:center" class="is-warn">⚠️ +${pct}%</td>`;
+      else
+        trend = `<td style="text-align:center;color:var(--muted)">≈ stabil</td>`;
+    }
+
+    // Bucket aus letztem Snapshot
+    const lastSnap = snapshotData[snapshotData.length - 1];
+    const lastD    = lastSnap?.data.find(x => x.name === name);
+    const bucket   = lastD?.bucket || '—';
+
+    return `<tr>
+      <td class="name-cell">${name}</td>
+      <td><span class="bucket-pill pill-${bucket}">${bucket}</span></td>
+      ${cells.join('')}
+      ${trend}
+    </tr>`;
+  });
+
+  document.getElementById('isTrendBody').innerHTML = rows.join('');
 }
 
 // URL-Param
