@@ -337,13 +337,14 @@ def gaql_campaign_system_status() -> str:
     """
 
 def gaql_budget_recommendations() -> str:
+    # In v21 sind current/recommended_budget_amount_micros nicht direkt selektierbar.
+    # Stattdessen nur prüfen ob eine Budget-Recommendation für die Strategie existiert.
     return """
     SELECT
       recommendation.resource_name,
       recommendation.type,
-      recommendation.campaign_budget_recommendation.current_budget_amount_micros,
-      recommendation.campaign_budget_recommendation.recommended_budget_amount_micros,
-      campaign.bidding_strategy
+      campaign.bidding_strategy,
+      campaign.campaign_budget
     FROM recommendation
     WHERE recommendation.type = CAMPAIGN_BUDGET
     """
@@ -517,15 +518,20 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
 
 
 def fetch_budget_recommendations(client, customer_id) -> Dict[str, dict]:
+    """
+    Gibt pro Strategie zurück ob eine Budget-Recommendation existiert.
+    Die konkreten Mikrobeträge sind in v21 nicht mehr direkt per GAQL abrufbar.
+    """
     recs = {}
     try:
         for r in search(client, customer_id, gaql_budget_recommendations()):
             rn = r.campaign.bidding_strategy
-            if not rn: continue
-            rec = r.recommendation.campaign_budget_recommendation
+            if not rn:
+                continue
+            # Markieren dass eine Recommendation existiert
             recs[rn] = {
-                "current_budget_micros":     safe_int(rec.current_budget_amount_micros),
-                "recommended_budget_micros": safe_int(rec.recommended_budget_amount_micros),
+                "current_budget_micros":     0,
+                "recommended_budget_micros": 0,
             }
     except Exception:
         pass
