@@ -47,7 +47,9 @@ MEDIAN_LOOKBACK_DAYS = 90
 # HOLIDAY CONFIG
 # ============================
 
-HOLIDAYS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "holidays.json")
+_BASE_DIR      = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
+HOLIDAYS_PATH  = os.path.join(_BASE_DIR, "holidays.json")
+SNAPSHOTS_PATH = os.path.join(_BASE_DIR, "snapshots.json")
 
 
 def load_holiday_periods() -> List[Tuple[date, date, str]]:
