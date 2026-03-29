@@ -312,6 +312,82 @@
     padding: 6px 10px; border-radius: 6px;
     font-size: 11px; white-space: nowrap; color: var(--text); z-index: 999;
   }
+
+  /* ── Holiday Banner ── */
+  .holiday-banner {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 10px; padding: 10px 16px;
+    margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+  }
+  .holiday-banner-text { font-size: 12px; color: var(--yellow); }
+  .holiday-banner-detail { font-size: 11px; color: var(--muted); }
+
+  /* ── Holiday Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; width: 580px; max-width: 95vw;
+    max-height: 90vh; overflow-y: auto; padding: 24px;
+  }
+  .modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 18px;
+  }
+  .modal-title { font-size: 15px; font-weight: 700; }
+  .modal-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 20px; cursor: pointer; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+  .holiday-row {
+    display: grid;
+    grid-template-columns: 1fr 140px 140px 34px;
+    gap: 8px; align-items: center;
+    margin-bottom: 8px;
+  }
+  .holiday-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 7px 10px; border-radius: 7px;
+    font-size: 13px; font-family: inherit; width: 100%;
+  }
+  .holiday-input:focus { outline: none; border-color: var(--blue); }
+  .holiday-input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.6);
+  }
+  .btn-del {
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+    color: var(--red); border-radius: 7px; padding: 7px 10px;
+    cursor: pointer; font-size: 13px; line-height: 1;
+  }
+  .btn-del:hover { background: rgba(239,68,68,0.2); }
+  .btn-add {
+    background: var(--surface2); border: 1px dashed var(--border);
+    border-radius: 8px; padding: 10px; width: 100%;
+    color: var(--muted); font-size: 13px; cursor: pointer;
+    font-family: inherit; margin-top: 4px;
+  }
+  .btn-add:hover { border-color: var(--blue); color: var(--blue); }
+  .modal-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    margin-top: 20px;
+  }
+  .save-msg {
+    margin-top: 12px; font-size: 12px;
+    text-align: center; display: none;
+  }
+  .col-label {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.4px;
+    padding-bottom: 4px;
+  }
 </style>
 </head>
 <body>
@@ -323,6 +399,10 @@
   </h1>
   <div class="controls">
     <input class="customer-input" id="customerId" placeholder="Customer ID" value="">
+    <button class="btn" style="background:var(--surface2);color:var(--muted);padding:8px 12px"
+            onclick="openHolidays()" title="Ferienzeiten verwalten">
+      📅
+    </button>
     <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">
       <span id="analyzeBtnText">🔍 Analyze</span>
     </button>
@@ -336,6 +416,54 @@
   </div>
 
   <div class="error-box" id="errorBox"></div>
+
+  <!-- Holiday-Banner (nur sichtbar wenn Normalisierung aktiv) -->
+  <div class="holiday-banner" id="holidayBanner" style="display:none">
+    <div>
+      <div class="holiday-banner-text">
+        🏖️ <strong>Urlaubsnormalisierung aktiv</strong>
+        — <span id="holidayBannerPeriods"></span>
+      </div>
+      <div class="holiday-banner-detail" id="holidayBannerDetail"></div>
+    </div>
+    <button class="btn" style="background:rgba(245,158,11,0.15);color:var(--yellow);
+                               font-size:11px;padding:5px 12px"
+            onclick="openHolidays()">
+      ✏️ Bearbeiten
+    </button>
+  </div>
+
+  <!-- Holiday Modal -->
+  <div class="modal-overlay" id="holidayOverlay" onclick="overlayClick(event)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">📅 Ferienzeiten (NRW)</div>
+        <button class="modal-close" onclick="closeHolidays()">✕</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Einmal jährlich aktualisieren. Klick-Gates (15/30 Schwellen) werden für Urlaubstage 
+        im 14d/30d-Fenster automatisch hochgerechnet — CPC-Basis bleibt unverändert.
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 140px 140px 34px;gap:8px;margin-bottom:6px">
+        <div class="col-label">Name</div>
+        <div class="col-label">Start</div>
+        <div class="col-label">Ende</div>
+        <div></div>
+      </div>
+
+      <div id="holidayList"></div>
+
+      <button class="btn-add" onclick="addHolidayRow()">+ Periode hinzufügen</button>
+
+      <div class="modal-footer">
+        <button class="btn" style="background:var(--surface2);color:var(--muted)"
+                onclick="closeHolidays()">Abbrechen</button>
+        <button class="btn btn-success" onclick="saveHolidays()">💾 Speichern</button>
+      </div>
+      <div class="save-msg" id="holidaySaveMsg"></div>
+    </div>
+  </div>
 
   <div id="dashboard" style="display:none">
 
@@ -625,6 +753,22 @@ function showError(msg, details) {
 
 function renderDashboard(data) {
   const s = data.summary;
+
+  // ── Holiday Banner ──
+  const hi = data.holiday_info;
+  const banner = document.getElementById('holidayBanner');
+  if (hi && hi.normalization_active) {
+    document.getElementById('holidayBannerPeriods').textContent =
+      hi.affected_periods.join(', ');
+    document.getElementById('holidayBannerDetail').textContent =
+      `${hi.holidays_in_14d} Urlaubstage im 14d-Fenster, ${hi.holidays_in_30d} im 30d-Fenster`
+      + (hi.normalized_strategies_count > 0
+        ? ` — ${hi.normalized_strategies_count} Strategien hochgerechnet`
+        : '');
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
 
   // Summary cards
   document.getElementById('summaryCards').innerHTML = `
@@ -995,6 +1139,114 @@ function toggleSection(id) {
 const urlParams = new URLSearchParams(window.location.search);
 const cidParam = urlParams.get('cid');
 if (cidParam) document.getElementById('customerId').value = cidParam;
+
+// ─── HOLIDAY MANAGEMENT ──────────────────────────────────────────
+
+async function openHolidays() {
+  document.getElementById('holidayOverlay').classList.add('open');
+  document.getElementById('holidaySaveMsg').style.display = 'none';
+  try {
+    const res = await fetch('/api/holidays');
+    const data = await res.json();
+    renderHolidayList(data.periods || []);
+  } catch (e) {
+    renderHolidayList([]);
+  }
+}
+
+function closeHolidays() {
+  document.getElementById('holidayOverlay').classList.remove('open');
+}
+
+function overlayClick(e) {
+  if (e.target === e.currentTarget) closeHolidays();
+}
+
+function renderHolidayList(periods) {
+  const list = document.getElementById('holidayList');
+  if (!periods.length) {
+    list.innerHTML = `<p style="color:var(--muted);font-size:12px;text-align:center;
+                                padding:16px 0">Noch keine Perioden — unten hinzufügen</p>`;
+    return;
+  }
+  list.innerHTML = periods.map((p, i) => `
+    <div class="holiday-row" id="hrow_${i}">
+      <input class="holiday-input" value="${p.name}" placeholder="z.B. Ostern"
+             data-field="name" data-i="${i}">
+      <input class="holiday-input" type="date" value="${p.start}"
+             data-field="start" data-i="${i}">
+      <input class="holiday-input" type="date" value="${p.end}"
+             data-field="end" data-i="${i}">
+      <button class="btn-del" onclick="removeHolidayRow(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function getHolidayRows() {
+  const rows = [];
+  let i = 0;
+  while (document.getElementById(`hrow_${i}`)) {
+    const row = document.getElementById(`hrow_${i}`);
+    const inputs = row.querySelectorAll('input');
+    rows.push({ name: inputs[0].value.trim(), start: inputs[1].value, end: inputs[2].value });
+    i++;
+  }
+  return rows;
+}
+
+function addHolidayRow() {
+  const rows = getHolidayRows();
+  const yr = new Date().getFullYear() + 1;
+  rows.push({ name: '', start: `${yr}-01-01`, end: `${yr}-01-01` });
+  renderHolidayList(rows);
+  // Fokus auf neues Namensfeld
+  const last = document.querySelector(`#hrow_${rows.length - 1} input`);
+  if (last) last.focus();
+}
+
+function removeHolidayRow(i) {
+  const rows = getHolidayRows();
+  rows.splice(i, 1);
+  renderHolidayList(rows);
+}
+
+async function saveHolidays() {
+  const periods = getHolidayRows();
+  const msg = document.getElementById('holidaySaveMsg');
+
+  // Client-Validierung
+  for (const p of periods) {
+    if (!p.name) { showSaveMsg('❌ Name fehlt in einer Periode', 'var(--red)'); return; }
+    if (!p.start || !p.end) { showSaveMsg('❌ Datum fehlt', 'var(--red)'); return; }
+    if (p.end < p.start) {
+      showSaveMsg(`❌ "${p.name}": End-Datum vor Start-Datum`, 'var(--red)'); return;
+    }
+  }
+
+  try {
+    const res = await fetch('/api/holidays', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: new Date().getFullYear(), periods })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showSaveMsg(`✅ ${data.count} Perioden gespeichert — aktiv ab nächster Analyse`, 'var(--green)');
+      setTimeout(closeHolidays, 1600);
+    } else {
+      showSaveMsg(`❌ ${data.error}`, 'var(--red)');
+    }
+  } catch (e) {
+    showSaveMsg(`❌ Netzwerkfehler: ${e.message}`, 'var(--red)');
+  }
+}
+
+function showSaveMsg(text, color) {
+  const el = document.getElementById('holidaySaveMsg');
+  el.textContent = text;
+  el.style.color = color;
+  el.style.display = 'block';
+}
 </script>
 
 </body>
