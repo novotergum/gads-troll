@@ -61,14 +61,14 @@ class StrategyRow:
     ctr_30d: float = 0.0
 
     # Health metrics
-    budget_lost_is_30d: float = 0.0       # Search IS lost due to budget
-    rank_lost_is_30d: float = 0.0         # Search IS lost due to rank
+    budget_lost_is_30d: float = 0.0
+    rank_lost_is_30d: float = 0.0
     impressions_30d: int = 0
-    lost_impressions_budget: int = 0      # estimated lost impressions due to budget
+    lost_impressions_budget: int = 0
 
     # Cap-limitierte Kampagnen (system_status)
-    cap_limited_campaigns: int = 0     # Kampagnen mit TARGET_SPEND_OPTIMIZE_BIDS_TOO_LOW
-    budget_limited_campaigns: int = 0  # Kampagnen mit budget_lost_is > 0.1
+    cap_limited_campaigns: int = 0
+    budget_limited_campaigns: int = 0
 
     # Budget recommendation
     budget_recommendation_micros: Optional[int] = None
@@ -206,15 +206,6 @@ def gaql_strategies() -> str:
       AND bidding_strategy.status != REMOVED
     """
 
-def gaql_enabled_campaign_count(strategy_rn: str) -> str:
-    return f"""
-    SELECT campaign.id
-    FROM campaign
-    WHERE
-      campaign.status = ENABLED
-      AND campaign.bidding_strategy = '{strategy_rn}'
-    """
-
 def gaql_metrics(during: str) -> str:
     return f"""
     SELECT
@@ -245,7 +236,6 @@ def gaql_campaign_system_status() -> str:
       AND campaign.bidding_strategy IS NOT NULL
       AND segments.date DURING LAST_30_DAYS
     """
-
 
 def gaql_budget_recommendations() -> str:
     return """
@@ -282,7 +272,6 @@ def fetch_strategies(client, customer_id) -> Dict[str, StrategyRow]:
 
 
 def fetch_enabled_campaign_counts(client, customer_id, strategies):
-    # Ein einziger Query statt N einzelne (N = Anzahl Strategien)
     q = """
     SELECT campaign.bidding_strategy, campaign.id
     FROM campaign
@@ -325,28 +314,17 @@ def fetch_metrics_aggregated(client, customer_id) -> Dict[str, Dict[str, dict]]:
 
 
 def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
-    """
-    Gibt pro Strategie zurück:
-    - cap_limited: Anzahl Kampagnen mit Cap-Limitierung
-    - budget_limited: Anzahl Kampagnen mit budget_lost_is > 10%
-    - total: Gesamtzahl Kampagnen
-    - campaign_details: Liste der limitierten Kampagnen
-    - debug_statuses: alle gesehenen Status-Werte (für Debugging)
-    """
-    # Google Ads API v21 BiddingStrategySystemStatus Enum-Werte
-    # die auf Cap-Limitierung hinweisen
     CAP_LIMITED_STATUSES = {
         "TARGET_SPEND_OPTIMIZE_BIDS_TOO_LOW",
         "TARGET_SPEND_CONSTRAINED_BY_BID_CEILING",
         "BUDGET_CONSTRAINED",
         "MISCONFIGURED_BIDDING_STRATEGY",
         "PAUSED",
-        # Numerische Fallbacks falls Enum als int kommt
         "2", "3", "4", "5", "6",
     }
 
     result: Dict[str, dict] = {}
-    all_statuses_seen = set()  # Debug
+    all_statuses_seen = set()
 
     try:
         for r in search(client, customer_id, gaql_campaign_system_status()):
@@ -354,11 +332,9 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
             if not rn:
                 continue
 
-            # Enum kann als int, string oder Enum-Objekt kommen
             raw_status = r.campaign.bidding_strategy_system_status
             status_int = int(raw_status) if raw_status is not None else 0
             status_str = str(raw_status)
-            # Versuche den Namen zu extrahieren
             status_name = status_str.split(".")[-1].strip()
             all_statuses_seen.add(f"{status_int}:{status_name}")
 
@@ -377,8 +353,6 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
             result[rn]["total"] += 1
             result[rn]["debug_statuses"].append(f"{camp_name}:{status_int}:{status_name}")
 
-            # Cap-Limitierung: status != 0 (0 = UNSPECIFIED/OK) und != 1 (UNKNOWN)
-            # Status 2+ bedeutet irgendeine Einschränkung
             is_cap = (
                 status_name in CAP_LIMITED_STATUSES
                 or (status_int >= 2 and status_int not in (0, 1))
@@ -400,13 +374,11 @@ def fetch_campaign_cap_status(client, customer_id) -> Dict[str, dict]:
     except Exception as e:
         return {"_error": str(e), "_debug": list(all_statuses_seen)}
 
-    # Debug-Info ans Result anhängen
     result["_debug_all_statuses"] = list(all_statuses_seen)
     return result
 
 
 def fetch_budget_recommendations(client, customer_id) -> Dict[str, dict]:
-    """Gibt budget recommendations pro bidding_strategy resource_name zurück."""
     recs = {}
     try:
         for r in search(client, customer_id, gaql_budget_recommendations()):
@@ -419,7 +391,7 @@ def fetch_budget_recommendations(client, customer_id) -> Dict[str, dict]:
                 "recommended_budget_micros": safe_int(rec.recommended_budget_amount_micros),
             }
     except Exception:
-        pass  # Recommendations API kann leer sein
+        pass
     return recs
 
 
@@ -430,7 +402,6 @@ def fetch_budget_recommendations(client, customer_id) -> Dict[str, dict]:
 def classify_and_compute(strategies, metrics, budget_recs):
     for rn, s in strategies.items():
 
-        # Health metrics aus 30d
         m30 = metrics.get(rn, {}).get("30d", {})
         s.budget_lost_is_30d = m30.get("budget_lost_is", 0.0)
         s.rank_lost_is_30d = m30.get("rank_lost_is", 0.0)
@@ -441,7 +412,6 @@ def classify_and_compute(strategies, metrics, budget_recs):
                 if s.budget_lost_is_30d < 1 else s.impressions_30d
             )
 
-        # Budget recommendation
         rec = budget_recs.get(rn, {})
         if rec:
             s.budget_recommendation_micros = rec.get("current_budget_micros")
@@ -559,7 +529,7 @@ def classify_and_compute(strategies, metrics, budget_recs):
         s.reason = "insufficient clicks"
         s.recommendation = "Umkreis erweitern"
 
-    # Score berechnen für alle Strategien (nach Bucket-Klassifizierung)
+    # Score berechnen
     for rn, s in strategies.items():
         if s.clicks_30d > 0 and s.rank_lost_is_30d > 0:
             s.click_opportunity = s.clicks_30d * s.rank_lost_is_30d
@@ -570,7 +540,7 @@ def classify_and_compute(strategies, metrics, budget_recs):
 
 
 # ============================
-# APPLY
+# APPLY UPDATES
 # ============================
 
 def apply_updates(client, customer_id, strategies: List[StrategyRow]) -> List[str]:
@@ -616,7 +586,6 @@ def run_analysis(customer_id: str) -> dict:
     cap_status = fetch_campaign_cap_status(client, customer_id)
     classify_and_compute(strategies, metrics, budget_recs)
 
-    # Cap/Budget-Limitierung in Strategien schreiben
     for rn, s in strategies.items():
         cs = cap_status.get(rn, {})
         s.cap_limited_campaigns = cs.get("cap_limited", 0)
@@ -642,33 +611,28 @@ def run_analysis(customer_id: str) -> dict:
     total_decreases = sum(s.cap_delta_micros for s in actionable if s.cap_delta_micros < 0)
     net_delta = total_increases + total_decreases
 
-    # Gewichtetes Cap-Delta: cap_delta × enabled_campaigns pro Strategie
     weighted_delta = sum(
         s.cap_delta_micros * s.enabled_campaigns
         for s in actionable
         if s.cap_delta_micros > 0
     )
 
-    # Health summary: cap- und budget-limitierte Strategien
+    def rank_pct(val: float) -> str:
+        return f"{round(val * 100, 1)}%"
+
     def get_action(s, cs):
-        # Cap-Limitierung: entweder system_status ODER rank_lost_is > 30%
         cap_lim_api = cs.get("cap_limited", 0)
         bud_lim = cs.get("budget_limited", 0)
         total = cs.get("total", s.enabled_campaigns) or 1
 
-        # rank_lost_is als Cap-Signal (zuverlässiger als system_status)
         rank_lost_pct = round(s.rank_lost_is_30d * 100, 1)
         rank_cap_signal = s.rank_lost_is_30d > 0.30 and s.enabled_campaigns > 0
-
-        # Budget-Signal aus aggregierten Metriken
         budget_signal = s.budget_lost_is_30d > 0.05
-
-        cap_lim = cap_lim_api  # aus system_status (falls verfügbar)
+        cap_lim = cap_lim_api
 
         if cap_lim == 0 and not rank_cap_signal and not budget_signal:
             return None
 
-        # Cap ist bereits korrekt gesetzt wenn new_cap == current_cap (±0)
         cap_already_optimal = (
             s.new_cap_micros is not None
             and s.current_cap_micros is not None
@@ -702,7 +666,6 @@ def run_analysis(customer_id: str) -> dict:
         elif budget_signal:
             parts.append(f"💰 Budget erhöhen | IS Budget: {rank_pct(s.budget_lost_is_30d)}")
 
-        # system_status cap-limitiert aber kein rank_cap_signal und kein budget_signal
         if not parts and cs.get("cap_limited", 0) > 0:
             total = cs.get("total", s.enabled_campaigns) or 1
             cap_lim = cs.get("cap_limited", 0)
@@ -716,9 +679,6 @@ def run_analysis(customer_id: str) -> dict:
                 parts.append(f"⚠️ Cap erhöhen — {cap_lim}/{total} Kamp. durch Gebotslimit")
 
         return " | ".join(parts) if parts else None
-
-    def rank_pct(val: float) -> str:
-        return f"{round(val * 100, 1)}%"
 
     budget_limited = []
     for s in strategies.values():
@@ -745,13 +705,12 @@ def run_analysis(customer_id: str) -> dict:
             "action": action,
             "campaign_details": cs.get("campaigns", []),
         })
-    # Score aus Strategie-Objekt in budget_limited eintragen und nach Score sortieren
+
     strategy_scores = {s.name: s.score for s in strategies.values()}
     for item in budget_limited:
         item["score"] = strategy_scores.get(item["name"], 0.0)
     budget_limited.sort(key=lambda x: x["score"], reverse=True)
 
-    # SKIP breakdown
     skips = [s for s in strategies.values() if s.bucket == "SKIP"]
     skip_no_campaigns = sum(1 for s in skips if s.enabled_campaigns <= 0)
     skip_no_data = sum(1 for s in skips if s.enabled_campaigns > 0 and s.clicks_30d == 0)
@@ -810,6 +769,7 @@ async def apply(payload: dict):
     customer_id = payload.get("customer_id", CUSTOMER_ID).replace("-", "")
     buckets_to_apply = payload.get("buckets", ["NEAR30_READY", "READY", "LOWVOL_READY", "LOWVOL_DECREASE"])
     include_warn = payload.get("include_warn", False)
+    excluded = set(payload.get("excluded_resource_names", []))  # Ausreißer-Ausschluss
 
     try:
         client = get_client()
@@ -819,10 +779,18 @@ async def apply(payload: dict):
         budget_recs = fetch_budget_recommendations(client, customer_id)
         classify_and_compute(strategies, metrics, budget_recs)
 
-        to_apply = [s for s in strategies.values() if s.bucket in buckets_to_apply]
+        to_apply = [
+            s for s in strategies.values()
+            if s.bucket in buckets_to_apply
+            and s.resource_name not in excluded
+        ]
         if include_warn:
-            to_apply += [s for s in strategies.values()
-                         if s.bucket == "WARN" and s.new_cap_micros is not None]
+            to_apply += [
+                s for s in strategies.values()
+                if s.bucket == "WARN"
+                and s.new_cap_micros is not None
+                and s.resource_name not in excluded
+            ]
 
         applied = apply_updates(client, customer_id, to_apply)
         return JSONResponse({"applied": applied, "count": len(applied)})
