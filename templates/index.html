@@ -5,10 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Google Ads Bidding Health Dashboard</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600;700&display=swap');
+
   :root {
     --bg: #0f1117;
     --surface: #1a1d27;
     --surface2: #222636;
+    --surface3: #2a2e42;
     --border: #2d3148;
     --text: #e2e8f0;
     --muted: #8892a4;
@@ -18,55 +21,74 @@
     --blue: #3b82f6;
     --purple: #8b5cf6;
     --orange: #f97316;
+    --pink: #ec4899;
+    --cyan: #06b6d4;
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 14px;
+  }
 
   .header {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
     position: sticky; top: 0; z-index: 100;
   }
-  .header h1 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .logo { width: 24px; height: 24px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 6px; }
 
-  .controls { display: flex; align-items: center; gap: 12px; }
+  .header h1 {
+    font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .logo {
+    width: 26px; height: 26px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 7px;
+  }
+
+  .controls { display: flex; align-items: center; gap: 10px; }
+
   .customer-input {
-    background: var(--surface2); border: 1px solid var(--border);
-    color: var(--text); padding: 8px 12px; border-radius: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px; border-radius: 8px;
     font-size: 13px; width: 160px;
+    font-family: 'JetBrains Mono', monospace;
   }
   .customer-input:focus { outline: none; border-color: var(--blue); }
 
   .btn {
-    padding: 8px 16px; border-radius: 8px; border: none;
-    cursor: pointer; font-size: 13px; font-weight: 500;
-    transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'DM Sans', sans-serif;
   }
   .btn-primary { background: var(--blue); color: white; }
   .btn-primary:hover { background: #2563eb; }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-success { background: var(--green); color: white; }
+  .btn-success { background: var(--green); color: #0a1a10; }
   .btn-success:hover { background: #16a34a; }
   .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-warning { background: var(--yellow); color: #1a1a1a; }
-  .btn-warning:hover { background: #d97706; }
-  .btn-danger { background: var(--red); color: white; }
 
-  .main { padding: 24px; max-width: 1600px; margin: 0 auto; }
+  .main { padding: 24px; max-width: 1700px; margin: 0 auto; }
 
   .loading {
-    display: none; text-align: center; padding: 80px;
-    color: var(--muted);
+    display: none; text-align: center; padding: 80px; color: var(--muted);
   }
   .spinner {
-    width: 40px; height: 40px; border: 3px solid var(--border);
-    border-top-color: var(--blue); border-radius: 50%;
-    animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    width: 38px; height: 38px;
+    border: 3px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -78,138 +100,217 @@
 
   /* Summary Cards */
   .summary-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px; margin-bottom: 24px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px; margin-bottom: 22px;
   }
   .card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px;
   }
-  .card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-  .card-value { font-size: 28px; font-weight: 700; }
-  .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card-label {
+    font-size: 10px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.6px; margin-bottom: 8px; font-weight: 600;
+  }
+  .card-value { font-size: 26px; font-weight: 700; }
+  .card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
   .positive { color: var(--green); }
   .negative { color: var(--red); }
   .neutral { color: var(--blue); }
   .warn-color { color: var(--yellow); }
 
-  /* Budget Health Section */
-  .section { margin-bottom: 28px; }
-  .section-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
-  }
-  .section-title {
-    font-size: 13px; font-weight: 600; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.5px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .badge {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 20px; padding: 2px 10px; font-size: 11px; color: var(--muted);
-  }
-
-  /* Tables */
-  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
-  table { width: 100%; border-collapse: collapse; }
-  th {
-    background: var(--surface2); padding: 10px 14px;
-    text-align: left; font-size: 11px; font-weight: 600;
-    color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px;
-    white-space: nowrap;
-  }
-  td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: middle; }
-  tr:hover td { background: rgba(255,255,255,0.02); }
-  .name-cell { font-weight: 500; max-width: 200px; }
-  .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
-
-  /* Delta pill */
-  .delta {
-    display: inline-flex; align-items: center; gap: 3px;
-    padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600;
-  }
-  .delta-up { background: rgba(34,197,94,0.12); color: var(--green); }
-  .delta-down { background: rgba(239,68,68,0.12); color: var(--red); }
-  .delta-zero { background: var(--surface2); color: var(--muted); }
-
-  /* IS bar */
-  .is-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 120px; }
-  .is-bar-bg { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .is-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-  .is-val { font-size: 12px; font-weight: 600; white-space: nowrap; }
-
-  /* Bucket color strips */
-  .bucket-NEAR30_READY td:first-child { border-left: 3px solid var(--purple); }
-  .bucket-READY td:first-child { border-left: 3px solid var(--green); }
-  .bucket-LOWVOL_READY td:first-child { border-left: 3px solid var(--blue); }
-  .bucket-LOWVOL_DECREASE td:first-child { border-left: 3px solid var(--orange); }
-  .bucket-WARN td:first-child { border-left: 3px solid var(--yellow); }
-  .bucket-SKIP td:first-child { border-left: 3px solid var(--border); }
-
-  .bucket-pill {
-    display: inline-block; padding: 2px 8px; border-radius: 20px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
-  }
-  .pill-NEAR30_READY { background: rgba(139,92,246,0.15); color: var(--purple); }
-  .pill-READY { background: rgba(34,197,94,0.15); color: var(--green); }
-  .pill-LOWVOL_READY { background: rgba(59,130,246,0.15); color: var(--blue); }
-  .pill-LOWVOL_DECREASE { background: rgba(249,115,22,0.15); color: var(--orange); }
-  .pill-WARN { background: rgba(245,158,11,0.15); color: var(--yellow); }
-  .pill-SKIP { background: var(--surface2); color: var(--muted); }
-
-  /* Apply section */
+  /* Apply Bar */
   .apply-bar {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 16px 20px;
+    border-radius: 12px; padding: 14px 20px;
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 22px; gap: 16px; flex-wrap: wrap;
   }
   .apply-info { font-size: 13px; color: var(--muted); }
   .apply-info strong { color: var(--text); }
-  .apply-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .apply-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .excluded-note {
+    font-size: 11px; color: var(--red); display: none;
+    background: rgba(239,68,68,0.1); padding: 3px 10px;
+    border-radius: 20px; border: 1px solid rgba(239,68,68,0.25);
+  }
 
   label.checkbox-label {
     display: flex; align-items: center; gap: 6px;
     font-size: 13px; color: var(--muted); cursor: pointer;
   }
 
-  /* Result box */
+  /* ─── OUTLIER SCORECARD ─── */
+  .scorecard {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 22px; overflow: hidden;
+  }
+  .scorecard-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
+  }
+  .scorecard-header:hover { background: var(--surface2); }
+  .scorecard-title {
+    font-size: 13px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sc-chevron { font-size: 10px; transition: transform 0.2s; color: var(--muted); }
+  .sc-chevron.open { transform: rotate(180deg); }
+  .scorecard-body { padding: 20px; display: none; }
+  .scorecard-body.open { display: block; }
+
+  /* Stat row */
+  .sc-stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px; margin-bottom: 20px;
+  }
+  .sc-stat {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px;
+  }
+  .sc-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 600; }
+  .sc-stat-val { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .sc-stat-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  /* Outlier list */
+  .outlier-legend {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .outlier-legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--muted);
+  }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .outlier-table-wrap {
+    border-radius: 10px; border: 1px solid var(--border); overflow-x: auto;
+  }
+  .outlier-table { width: 100%; border-collapse: collapse; }
+  .outlier-table th {
+    background: var(--surface3); padding: 9px 13px;
+    text-align: left; font-size: 10px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  .outlier-table td {
+    padding: 9px 13px; border-top: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .outlier-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .outlier-flag {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;
+    margin: 2px;
+  }
+  .flag-cpc { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .flag-delta { background: rgba(239,68,68,0.15); color: var(--red); }
+  .flag-score { background: rgba(139,92,246,0.15); color: var(--purple); }
+  .flag-is { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .flag-lowcpc { background: rgba(6,182,212,0.15); color: var(--cyan); }
+
+  .outlier-row td { background: rgba(239,68,68,0.03); }
+  .outlier-severity-high { border-left: 3px solid var(--red) !important; }
+  .outlier-severity-med  { border-left: 3px solid var(--yellow) !important; }
+
+  /* Exclude checkbox */
+  .exclude-check {
+    width: 16px; height: 16px; cursor: pointer;
+    accent-color: var(--red);
+  }
+  .excluded-row td { opacity: 0.45; text-decoration: line-through; }
+  .excluded-row td:first-child { opacity: 1; text-decoration: none; }
+
+  /* Sections */
+  .section { margin-bottom: 26px; }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .section-title {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .badge {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2px 9px; font-size: 11px; color: var(--muted);
+  }
+  .badge-warn { border-color: rgba(239,68,68,0.4); color: var(--red); background: rgba(239,68,68,0.08); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--surface2); padding: 10px 13px;
+    text-align: left; font-size: 10px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.4px; white-space: nowrap;
+  }
+  td { padding: 10px 13px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .name-cell { font-weight: 600; max-width: 200px; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  .delta {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .delta-up   { background: rgba(34,197,94,0.12);  color: var(--green); }
+  .delta-down { background: rgba(239,68,68,0.12);   color: var(--red); }
+  .delta-zero { background: var(--surface2);         color: var(--muted); }
+
+  .is-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+  .is-bar-bg { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .is-bar-fill { height: 100%; border-radius: 3px; }
+  .is-val { font-size: 12px; font-weight: 700; white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
+
+  /* Bucket styles */
+  .bucket-NEAR30_READY td:first-child  { border-left: 3px solid var(--purple); }
+  .bucket-READY          td:first-child { border-left: 3px solid var(--green); }
+  .bucket-LOWVOL_READY   td:first-child { border-left: 3px solid var(--blue); }
+  .bucket-LOWVOL_DECREASE td:first-child { border-left: 3px solid var(--orange); }
+  .bucket-WARN           td:first-child { border-left: 3px solid var(--yellow); }
+  .bucket-SKIP           td:first-child { border-left: 3px solid var(--border); }
+
+  .bucket-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+  }
+  .pill-NEAR30_READY  { background: rgba(139,92,246,0.15); color: var(--purple); }
+  .pill-READY         { background: rgba(34,197,94,0.15);  color: var(--green); }
+  .pill-LOWVOL_READY  { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .pill-LOWVOL_DECREASE { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .pill-WARN          { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .pill-SKIP          { background: var(--surface2); color: var(--muted); }
+
+  /* Result */
   .result-box {
     background: #0f2d1a; border: 1px solid #166534;
-    border-radius: 10px; padding: 16px; margin-top: 16px;
-    display: none;
+    border-radius: 10px; padding: 16px; margin-top: 16px; display: none;
   }
   .result-box h4 { color: var(--green); margin-bottom: 8px; font-size: 13px; }
   .result-box ul { list-style: none; font-size: 12px; color: #86efac; }
-  .result-box ul li { padding: 2px 0; font-family: monospace; }
+  .result-box ul li { padding: 2px 0; font-family: 'JetBrains Mono', monospace; }
 
-  /* Collapsible sections */
-  .collapse-toggle {
-    cursor: pointer; user-select: none;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .collapse-toggle::before {
-    content: '▼'; font-size: 10px; transition: transform 0.2s;
-  }
+  .collapse-toggle { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; }
+  .collapse-toggle::before { content: '▼'; font-size: 9px; transition: transform 0.2s; }
   .collapse-toggle.collapsed::before { transform: rotate(-90deg); }
   .collapsible { transition: all 0.2s; }
 
   .empty-row td { text-align: center; color: var(--muted); padding: 24px; font-style: italic; }
-
-  .placeholder {
-    text-align: center; padding: 80px 24px; color: var(--muted);
-  }
+  .placeholder { text-align: center; padding: 80px 24px; color: var(--muted); }
   .placeholder-icon { font-size: 48px; margin-bottom: 16px; }
   .placeholder h2 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
 
-  /* Tooltip */
   [data-tip] { position: relative; cursor: help; }
   [data-tip]:hover::after {
     content: attr(data-tip);
     position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
     background: #1e2330; border: 1px solid var(--border);
-    padding: 6px 10px; border-radius: 6px; font-size: 11px;
-    white-space: nowrap; color: var(--text); z-index: 999;
+    padding: 6px 10px; border-radius: 6px;
+    font-size: 11px; white-space: nowrap; color: var(--text); z-index: 999;
   }
 </style>
 </head>
@@ -229,7 +330,6 @@
 </div>
 
 <div class="main">
-
   <div class="loading" id="loading">
     <div class="spinner"></div>
     Lade Daten von Google Ads API…
@@ -246,7 +346,7 @@
     <div class="apply-bar">
       <div class="apply-info">
         <strong id="applyCount">0</strong> Strategien bereit zum Applyen
-        (NEAR30_READY, READY, LOWVOL_READY, LOWVOL_DECREASE)
+        &nbsp;<span class="excluded-note" id="excludedNote">(<span id="excludedCount">0</span> ausgeschlossen)</span>
       </div>
       <div class="apply-controls">
         <label class="checkbox-label">
@@ -263,11 +363,73 @@
       <ul id="resultList"></ul>
     </div>
 
+    <!-- ─── OUTLIER SCORECARD ─── -->
+    <div class="scorecard" id="outlierScorecard">
+      <div class="scorecard-header" onclick="toggleScorecard()">
+        <div class="scorecard-title">
+          <span>⚠️</span>
+          Outlier-Scorecard
+          <span class="badge badge-warn" id="outlierCount">0 Ausreißer</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:11px;color:var(--muted)">Ausreißer vom Apply ausschließen</span>
+          <span class="sc-chevron" id="scChevron">▼</span>
+        </div>
+      </div>
+      <div class="scorecard-body" id="scorecardBody">
+
+        <!-- Stat distribution -->
+        <div class="sc-stat-grid" id="scStatGrid"></div>
+
+        <!-- Legend -->
+        <div class="outlier-legend">
+          <span style="font-size:11px;font-weight:600;color:var(--muted)">Flag-Typen:</span>
+          <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--red)"></div>Hohes Cap-Delta</div>
+          <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--orange)"></div>CPC-Sprung &gt;2×</div>
+          <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--purple)"></div>Score-Ausreißer</div>
+          <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>IS-Loss &gt;60%</div>
+          <div class="outlier-legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>Sehr niedriger CPC</div>
+          <div style="margin-left:auto;font-size:11px;color:var(--muted)">
+            ☑ = vom Apply ausschließen
+          </div>
+        </div>
+
+        <div class="outlier-table-wrap">
+          <table class="outlier-table">
+            <thead>
+              <tr>
+                <th style="width:36px" data-tip="Vom Apply ausschließen">Excl.</th>
+                <th>Strategie</th>
+                <th>Bucket</th>
+                <th>Cap Alt → Neu</th>
+                <th>Delta</th>
+                <th>CPC 14d/30d</th>
+                <th>Score</th>
+                <th>Flags</th>
+                <th>Schwere</th>
+              </tr>
+            </thead>
+            <tbody id="outlierBody"></tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" style="background:rgba(239,68,68,0.15);color:var(--red);font-size:12px" onclick="excludeAllOutliers()">
+            🚫 Alle Ausreißer ausschließen
+          </button>
+          <button class="btn" style="background:var(--surface2);color:var(--muted);font-size:12px" onclick="includeAllOutliers()">
+            ✅ Alle wieder einschließen
+          </button>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Budget Health -->
     <div class="section" id="budgetHealthSection">
       <div class="section-header">
         <div class="section-title collapse-toggle" onclick="toggleSection('budgetHealth')">
-          ⚡ Cap &amp; Budget Health
+          ⚡ Cap & Budget Health
           <span class="badge" id="budgetLimitedCount">0</span>
         </div>
       </div>
@@ -290,7 +452,7 @@
       </div>
     </div>
 
-    <!-- Cap Changes Table -->
+    <!-- Cap Changes -->
     <div class="section">
       <div class="section-header">
         <div class="section-title collapse-toggle" onclick="toggleSection('capChanges')">
@@ -303,6 +465,7 @@
           <table>
             <thead>
               <tr>
+                <th style="width:36px" data-tip="Vom Apply ausschließen">Excl.</th>
                 <th>Strategie</th>
                 <th>Bucket</th>
                 <th>Clicks 14d / 30d</th>
@@ -322,7 +485,7 @@
       </div>
     </div>
 
-    <!-- SKIP Table -->
+    <!-- SKIP -->
     <div class="section">
       <div class="section-header">
         <div class="section-title collapse-toggle collapsed" onclick="toggleSection('skipTable')">
@@ -347,20 +510,83 @@
       </div>
     </div>
 
-  </div>
+  </div><!-- /dashboard -->
 
-  <!-- Placeholder -->
   <div class="placeholder" id="placeholder">
     <div class="placeholder-icon">📈</div>
     <h2>Bidding Health Dashboard</h2>
     <p>Customer ID eingeben und auf Analyze klicken</p>
   </div>
-
 </div>
 
 <script>
 let analysisData = null;
+let excludedStrategies = new Set(); // resource_names or indices
 
+// ─── OUTLIER DETECTION ───────────────────────────────────────────
+function iqrOutliers(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const q1 = sorted[Math.floor(sorted.length * 0.25)] ?? 0;
+  const q3 = sorted[Math.floor(sorted.length * 0.75)] ?? 0;
+  const iqr = q3 - q1;
+  return { q1, q3, iqr, low: q1 - 1.5 * iqr, high: q3 + 1.5 * iqr, median: sorted[Math.floor(sorted.length / 2)] ?? 0 };
+}
+
+function mean(arr) { return arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0; }
+function stddev(arr) {
+  const m = mean(arr);
+  return arr.length < 2 ? 0 : Math.sqrt(arr.reduce((s,v) => s + (v-m)**2, 0) / arr.length);
+}
+
+function detectOutliers(strategies) {
+  if (!strategies.length) return [];
+
+  const deltas   = strategies.map(s => Math.abs((s.cap_delta_micros || 0) / 1e6));
+  const cpcRatios = strategies.map(s => {
+    const c30 = s.avg_cpc_30d_micros || 0;
+    const c14 = s.avg_cpc_14d_micros || 0;
+    return c30 > 0 ? c14 / c30 : 1;
+  });
+  const scores   = strategies.map(s => s.score || 0);
+  const isLosses = strategies.map(s => s.rank_lost_is_30d || 0);
+
+  const dStats  = iqrOutliers(deltas);
+  const cStats  = iqrOutliers(cpcRatios);
+  const scStats = iqrOutliers(scores);
+  const isStats = iqrOutliers(isLosses);
+
+  return strategies.map((s, i) => {
+    const flags = [];
+    const absDelta = deltas[i];
+    const cpcRatio = cpcRatios[i];
+    const score    = scores[i];
+    const isLoss   = isLosses[i];
+
+    // Flag: large absolute cap delta (IQR outlier + min threshold €0.50)
+    if (absDelta > dStats.high && absDelta > 0.5)
+      flags.push({ type: 'delta', label: `Δ${absDelta > 5 ? 'XXL' : 'XL'} Cap +/-${absDelta.toFixed(2)}€` });
+
+    // Flag: CPC jump > 2× or drop < 0.4×
+    if (cpcRatio > 2.0)
+      flags.push({ type: 'cpc', label: `CPC ×${cpcRatio.toFixed(1)} (14d/30d)` });
+    else if (cpcRatio < 0.4 && (s.avg_cpc_30d_micros || 0) > 0)
+      flags.push({ type: 'lowcpc', label: `CPC ↓${(cpcRatio*100).toFixed(0)}% (14d/30d)` });
+
+    // Flag: score outlier
+    if (score > scStats.high && score > 15)
+      flags.push({ type: 'score', label: `Score ${score.toFixed(1)} (P75+IQR)` });
+
+    // Flag: IS loss > 60%
+    if (isLoss > 0.6)
+      flags.push({ type: 'is', label: `IS-Loss ${(isLoss*100).toFixed(0)}%` });
+
+    const severity = flags.length >= 2 ? 'high' : flags.length === 1 ? 'med' : 'none';
+
+    return { ...s, _flags: flags, _severity: severity, _i: i };
+  }).filter(s => s._flags.length > 0);
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────
 async function analyze() {
   const customerId = document.getElementById('customerId').value.trim();
   if (!customerId) { alert('Bitte Customer ID eingeben'); return; }
@@ -372,19 +598,14 @@ async function analyze() {
   document.getElementById('resultBox').style.display = 'none';
   document.getElementById('analyzeBtn').disabled = true;
   document.getElementById('analyzeBtnText').textContent = '⏳ Lädt…';
+  excludedStrategies.clear();
 
   try {
     const res = await fetch(`/api/analyze?customer_id=${encodeURIComponent(customerId)}`);
     const data = await res.json();
-
-    if (data.error) {
-      showError(data.error, data.details);
-      return;
-    }
-
+    if (data.error) { showError(data.error, data.details); return; }
     analysisData = data;
     renderDashboard(data);
-
   } catch (e) {
     showError('Netzwerkfehler: ' + e.message);
   } finally {
@@ -397,10 +618,7 @@ async function analyze() {
 function showError(msg, details) {
   const box = document.getElementById('errorBox');
   let html = `<strong>❌ Fehler:</strong> ${msg}`;
-  if (details) {
-    html += '<ul style="margin-top:8px">' +
-      details.map(d => `<li>${d.message}</li>`).join('') + '</ul>';
-  }
+  if (details) html += '<ul style="margin-top:8px">' + details.map(d => `<li>${d.message}</li>`).join('') + '</ul>';
   box.innerHTML = html;
   box.style.display = 'block';
 }
@@ -408,7 +626,7 @@ function showError(msg, details) {
 function renderDashboard(data) {
   const s = data.summary;
 
-  // Summary Cards
+  // Summary cards
   document.getElementById('summaryCards').innerHTML = `
     <div class="card">
       <div class="card-label">Actionable</div>
@@ -448,7 +666,7 @@ function renderDashboard(data) {
 
   document.getElementById('applyCount').textContent = s.total_actionable;
 
-  // Cap & Budget Health
+  // Budget Health
   const bl = data.budget_limited;
   document.getElementById('budgetLimitedCount').textContent = bl.length;
   const bhBody = document.getElementById('budgetHealthBody');
@@ -460,19 +678,21 @@ function renderDashboard(data) {
       const budColor = b.budget_limited > 0 ? '#f59e0b' : '#8892a4';
       const actionColor = b.action.startsWith('🔴') ? '#ef4444' : b.action.startsWith('⚠️') ? '#f59e0b' : b.action.startsWith('✅') ? '#22c55e' : '#3b82f6';
       const capChange = b.cap_delta ? `<span class="mono" style="color:${b.cap_delta.startsWith('+') ? '#22c55e' : '#ef4444'}">${b.cap_delta}</span>` : '—';
-      const capStr = b.cap_alt && b.cap_neu ? `${b.cap_alt}€ → ${b.cap_neu}€ ${capChange}` : b.cap_alt ? `${b.cap_alt}€` : '—';
+      const capStr = b.cap_alt && b.cap_neu
+        ? `${b.cap_alt}€ → ${b.cap_neu}€ ${capChange}`
+        : b.cap_alt ? `${b.cap_alt}€` : '—';
       return `<tr>
         <td class="name-cell">${b.name}</td>
         <td><span class="bucket-pill pill-${b.bucket}">${b.bucket}</span></td>
-        <td style="color:${capColor};font-weight:600">${b.cap_limited}/${b.total_campaigns}</td>
-        <td style="color:${budColor};font-weight:600">${b.budget_limited}/${b.total_campaigns}</td>
-        <td class="mono" style="font-size:12px">${capStr}</td>
-        <td style="color:${actionColor};font-size:12px;font-weight:500">${b.action}</td>
+        <td style="color:${capColor};font-weight:700">${b.cap_limited}/${b.total_campaigns}</td>
+        <td style="color:${budColor};font-weight:700">${b.budget_limited}/${b.total_campaigns}</td>
+        <td class="mono">${capStr}</td>
+        <td style="color:${actionColor};font-size:12px;font-weight:600">${b.action}</td>
       </tr>`;
     }).join('');
   }
 
-  // Cap Changes (alle außer SKIP)
+  // Collect all actionable
   const allActionable = [
     ...data.buckets.NEAR30_READY,
     ...data.buckets.READY,
@@ -480,25 +700,37 @@ function renderDashboard(data) {
     ...data.buckets.LOWVOL_DECREASE,
     ...data.buckets.WARN,
   ];
+
   document.getElementById('capChangesCount').textContent = allActionable.length;
 
+  // ─── OUTLIER SCORECARD ───
+  renderOutlierScorecard(allActionable);
+
+  // Cap Changes table (with exclude checkboxes)
   const ccBody = document.getElementById('capChangesBody');
   if (allActionable.length === 0) {
-    ccBody.innerHTML = '<tr class="empty-row"><td colspan="10">Keine Cap-Änderungen</td></tr>';
+    ccBody.innerHTML = '<tr class="empty-row"><td colspan="12">Keine Cap-Änderungen</td></tr>';
   } else {
     ccBody.innerHTML = allActionable
       .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .map(s => {
+      .map((s, i) => {
+        const rid = s.resource_name || `idx_${i}`;
         const delta = s.cap_delta_micros || 0;
         const deltaEur = (delta / 1e6).toFixed(2);
         const deltaClass = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero';
         const deltaText = delta > 0 ? `+${deltaEur}€` : delta < 0 ? `${deltaEur}€` : '±0';
-        const rankLost = s.rank_lost_is_30d > 0.05 ?
-          `<span style="color:${s.rank_lost_is_30d > 0.5 ? '#ef4444' : s.rank_lost_is_30d > 0.3 ? '#f59e0b' : '#8892a4'}" title="IS lost durch Rang (Cap-Signal)">${(s.rank_lost_is_30d*100).toFixed(1)}%↓</span>` : '';
-        const budgetLost = s.budget_lost_is_30d > 0.01 ?
-          `<span style="color:#3b82f6" title="IS lost durch Budget">${(s.budget_lost_is_30d*100).toFixed(1)}%💰</span>` : '';
+        const rankLost = s.rank_lost_is_30d > 0.05
+          ? `<span style="color:${s.rank_lost_is_30d > 0.5 ? '#ef4444' : s.rank_lost_is_30d > 0.3 ? '#f59e0b' : '#8892a4'}">${(s.rank_lost_is_30d*100).toFixed(1)}%↓</span>` : '';
+        const budgetLost = s.budget_lost_is_30d > 0.01
+          ? `<span style="color:#3b82f6">${(s.budget_lost_is_30d*100).toFixed(1)}%💰</span>` : '';
         const isLostCell = [rankLost, budgetLost].filter(Boolean).join(' ') || '—';
-        return `<tr class="bucket-${s.bucket}">
+
+        return `<tr class="bucket-${s.bucket}" id="caprow_${rid}" data-rid="${rid}">
+          <td>
+            <input type="checkbox" class="exclude-check" data-rid="${rid}"
+              onchange="toggleExclude('${rid}')"
+              title="Vom Apply ausschließen">
+          </td>
           <td class="name-cell">${s.name}</td>
           <td><span class="bucket-pill pill-${s.bucket}">${s.bucket}</span></td>
           <td class="mono">${s.clicks_14d} / ${s.clicks_30d}</td>
@@ -524,17 +756,196 @@ function renderDashboard(data) {
       <td class="mono">${s.clicks_14d} / ${s.clicks_30d}</td>
       <td style="color:var(--muted);font-size:12px">${s.reason}</td>
       <td style="color:var(--muted);font-size:12px">${s.recommendation || ''}</td>
-    </tr>`).join('') || '<tr class="empty-row"><td colspan="4">Keine aktiven SKIP-Strategien</td></tr>';
+    </tr>`).join('')
+    || '<tr class="empty-row"><td colspan="4">Keine aktiven SKIP-Strategien</td></tr>';
 
   document.getElementById('dashboard').style.display = 'block';
 }
 
+function renderOutlierScorecard(strategies) {
+  if (!strategies.length) return;
+
+  // Stats for summary
+  const deltas  = strategies.map(s => Math.abs((s.cap_delta_micros || 0) / 1e6));
+  const scores  = strategies.map(s => s.score || 0);
+  const cpcs    = strategies.map(s => (s.avg_cpc_14d_micros || 0) / 1e6);
+  const dStats  = iqrOutliers(deltas);
+  const scStats = iqrOutliers(scores);
+  const cpcStats = iqrOutliers(cpcs);
+
+  document.getElementById('scStatGrid').innerHTML = `
+    <div class="sc-stat">
+      <div class="sc-stat-label">Ø Cap-Delta</div>
+      <div class="sc-stat-val" style="color:var(--blue)">±${mean(deltas).toFixed(2)}€</div>
+      <div class="sc-stat-sub">Median: ±${dStats.median.toFixed(2)}€</div>
+    </div>
+    <div class="sc-stat">
+      <div class="sc-stat-label">IQR Cap-Delta</div>
+      <div class="sc-stat-val" style="color:var(--purple)">${dStats.iqr.toFixed(2)}€</div>
+      <div class="sc-stat-sub">Ausreißer-Schwelle: >${dStats.high.toFixed(2)}€</div>
+    </div>
+    <div class="sc-stat">
+      <div class="sc-stat-label">Ø Score</div>
+      <div class="sc-stat-val" style="color:var(--yellow)">${mean(scores).toFixed(1)}</div>
+      <div class="sc-stat-sub">Max: ${Math.max(...scores).toFixed(1)}</div>
+    </div>
+    <div class="sc-stat">
+      <div class="sc-stat-label">Ø CPC 14d</div>
+      <div class="sc-stat-val" style="color:var(--cyan)">${mean(cpcs).toFixed(2)}€</div>
+      <div class="sc-stat-sub">StdDev: ${stddev(cpcs).toFixed(2)}€</div>
+    </div>
+    <div class="sc-stat">
+      <div class="sc-stat-label">CPC Ausreißer-Schwelle</div>
+      <div class="sc-stat-val" style="color:var(--orange)">&gt;${cpcStats.high.toFixed(2)}€</div>
+      <div class="sc-stat-sub">IQR: ${cpcStats.iqr.toFixed(2)}€</div>
+    </div>
+    <div class="sc-stat">
+      <div class="sc-stat-label">Strategien total</div>
+      <div class="sc-stat-val" style="color:var(--muted)">${strategies.length}</div>
+      <div class="sc-stat-sub">Actionable</div>
+    </div>
+  `;
+
+  const outliers = detectOutliers(strategies);
+  document.getElementById('outlierCount').textContent = `${outliers.length} Ausreißer`;
+  if (outliers.length > 0) {
+    document.getElementById('outlierCount').style.cssText = '';
+  }
+
+  const tbody = document.getElementById('outlierBody');
+  if (outliers.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Keine Ausreißer erkannt — alle Strategien liegen im normalen Bereich</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = outliers.map(s => {
+    const rid = s.resource_name || `idx_${s._i}`;
+    const delta = s.cap_delta_micros || 0;
+    const deltaEur = (delta / 1e6).toFixed(2);
+    const deltaClass = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero';
+    const deltaText = delta > 0 ? `+${deltaEur}€` : delta < 0 ? `${deltaEur}€` : '±0';
+    const capAlt = s.current_cap_micros ? (s.current_cap_micros/1e6).toFixed(2) + '€' : '—';
+    const capNeu = s.new_cap_micros ? (s.new_cap_micros/1e6).toFixed(2) + '€' : '—';
+    const cpc14 = ((s.avg_cpc_14d_micros || 0)/1e6).toFixed(2);
+    const cpc30 = ((s.avg_cpc_30d_micros || 0)/1e6).toFixed(2);
+    const severityClass = s._severity === 'high' ? 'outlier-severity-high' : 'outlier-severity-med';
+    const severityBadge = s._severity === 'high'
+      ? `<span style="color:var(--red);font-weight:700;font-size:11px">🔴 HOCH</span>`
+      : `<span style="color:var(--yellow);font-weight:700;font-size:11px">🟡 MITTEL</span>`;
+    const flagHtml = s._flags.map(f => {
+      const cls = { delta: 'flag-delta', cpc: 'flag-cpc', score: 'flag-score', is: 'flag-is', lowcpc: 'flag-lowcpc' }[f.type] || '';
+      return `<span class="outlier-flag ${cls}">${f.label}</span>`;
+    }).join('');
+
+    return `<tr class="outlier-row ${severityClass}" id="outlierrow_${rid}" data-rid="${rid}">
+      <td>
+        <input type="checkbox" class="exclude-check" data-rid="${rid}"
+          id="outlier_chk_${rid}"
+          onchange="toggleExclude('${rid}')"
+          title="Vom Apply ausschließen">
+      </td>
+      <td class="name-cell">${s.name}</td>
+      <td><span class="bucket-pill pill-${s.bucket}">${s.bucket}</span></td>
+      <td class="mono" style="font-size:11px">${capAlt} → ${capNeu}</td>
+      <td><span class="delta ${deltaClass}">${deltaText}</span></td>
+      <td class="mono">${cpc14} / ${cpc30}</td>
+      <td class="mono" style="color:${s.score > 20 ? '#ef4444' : s.score > 10 ? '#f59e0b' : '#8892a4'}">${s.score ? s.score.toFixed(1) : '—'}</td>
+      <td>${flagHtml}</td>
+      <td>${severityBadge}</td>
+    </tr>`;
+  }).join('');
+
+  // Open scorecard if outliers exist
+  if (outliers.length > 0) {
+    document.getElementById('scorecardBody').classList.add('open');
+    document.getElementById('scChevron').classList.add('open');
+  }
+}
+
+// ─── EXCLUDE LOGIC ───────────────────────────────────────────────
+function toggleExclude(rid) {
+  const isExcluded = excludedStrategies.has(rid);
+
+  if (isExcluded) {
+    excludedStrategies.delete(rid);
+  } else {
+    excludedStrategies.add(rid);
+  }
+
+  // Sync all checkboxes with this rid
+  document.querySelectorAll(`.exclude-check[data-rid="${rid}"]`)
+    .forEach(cb => cb.checked = !isExcluded);
+
+  // Visual feedback in cap changes table row
+  const capRow = document.getElementById(`caprow_${rid}`);
+  if (capRow) capRow.classList.toggle('excluded-row', !isExcluded);
+
+  const outlierRow = document.getElementById(`outlierrow_${rid}`);
+  if (outlierRow) outlierRow.style.opacity = !isExcluded ? '0.45' : '1';
+
+  updateExcludedNote();
+}
+
+function updateExcludedNote() {
+  const note = document.getElementById('excludedNote');
+  const countEl = document.getElementById('excludedCount');
+  if (excludedStrategies.size > 0) {
+    note.style.display = 'inline';
+    countEl.textContent = excludedStrategies.size;
+  } else {
+    note.style.display = 'none';
+  }
+}
+
+function excludeAllOutliers() {
+  document.querySelectorAll('#outlierBody .exclude-check').forEach(cb => {
+    const rid = cb.dataset.rid;
+    excludedStrategies.add(rid);
+    cb.checked = true;
+    document.querySelectorAll(`.exclude-check[data-rid="${rid}"]`).forEach(c => c.checked = true);
+    const capRow = document.getElementById(`caprow_${rid}`);
+    if (capRow) capRow.classList.add('excluded-row');
+  });
+  updateExcludedNote();
+}
+
+function includeAllOutliers() {
+  document.querySelectorAll('#outlierBody .exclude-check').forEach(cb => {
+    const rid = cb.dataset.rid;
+    excludedStrategies.delete(rid);
+    cb.checked = false;
+    document.querySelectorAll(`.exclude-check[data-rid="${rid}"]`).forEach(c => c.checked = false);
+    const capRow = document.getElementById(`caprow_${rid}`);
+    if (capRow) capRow.classList.remove('excluded-row');
+  });
+  updateExcludedNote();
+}
+
+// ─── SCORECARD TOGGLE ────────────────────────────────────────────
+function toggleScorecard() {
+  const body = document.getElementById('scorecardBody');
+  const chevron = document.getElementById('scChevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+}
+
+// ─── APPLY ───────────────────────────────────────────────────────
 async function applyChanges() {
   if (!analysisData) return;
   const includeWarn = document.getElementById('includeWarn').checked;
   const customerId = document.getElementById('customerId').value.trim();
 
-  if (!confirm(`${analysisData.summary.total_actionable} Caps applyen?${includeWarn ? ' + WARN Fälle' : ''})`)) return;
+  const total = analysisData.summary.total_actionable;
+  const excl  = excludedStrategies.size;
+  const net   = total - excl;
+
+  if (net === 0) { alert('Keine Strategien zum Applyen (alle ausgeschlossen?)'); return; }
+
+  const confirmMsg = `${net} Cap${net !== 1 ? 's' : ''} applyen?`
+    + (excl > 0 ? `\n(${excl} Ausreißer ausgeschlossen)` : '')
+    + (includeWarn ? '\n+ WARN-Fälle' : '');
+
+  if (!confirm(confirmMsg)) return;
 
   const btn = document.getElementById('applyBtn');
   btn.disabled = true;
@@ -543,24 +954,22 @@ async function applyChanges() {
   try {
     const res = await fetch('/api/apply', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ customer_id: customerId, include_warn: includeWarn })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_id: customerId,
+        include_warn: includeWarn,
+        excluded_resource_names: [...excludedStrategies]
+      })
     });
     const data = await res.json();
-
-    if (data.error) {
-      showError(data.error, data.details);
-      return;
-    }
+    if (data.error) { showError(data.error, data.details); return; }
 
     const box = document.getElementById('resultBox');
     document.getElementById('resultList').innerHTML = data.applied.map(a => `<li>✓ ${a}</li>`).join('');
     box.style.display = 'block';
     box.scrollIntoView({ behavior: 'smooth' });
 
-    // Re-analyze nach Apply
     setTimeout(() => analyze(), 2000);
-
   } catch (e) {
     showError('Apply fehlgeschlagen: ' + e.message);
   } finally {
@@ -569,24 +978,24 @@ async function applyChanges() {
   }
 }
 
+// ─── HELPERS ─────────────────────────────────────────────────────
 function toggleSection(id) {
   const el = document.getElementById(id);
-  const toggle = el.previousElementSibling.querySelector('.collapse-toggle');
+  const toggle = el.previousElementSibling?.querySelector('.collapse-toggle')
+               || el.previousElementSibling;
   if (el.style.display === 'none') {
     el.style.display = 'block';
-    toggle.classList.remove('collapsed');
+    toggle?.classList.remove('collapsed');
   } else {
     el.style.display = 'none';
-    toggle.classList.add('collapsed');
+    toggle?.classList.add('collapsed');
   }
 }
 
-// Customer ID aus URL-Param laden
 const urlParams = new URLSearchParams(window.location.search);
 const cidParam = urlParams.get('cid');
-if (cidParam) {
-  document.getElementById('customerId').value = cidParam;
-}
+if (cidParam) document.getElementById('customerId').value = cidParam;
 </script>
+
 </body>
 </html>
